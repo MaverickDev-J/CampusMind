@@ -1,0 +1,32 @@
+# ──────────────────────────────────────────────
+# CampusMind — FastAPI Backend Dependencies
+# Install: pip install -r requirements.txt
+# ──────────────────────────────────────────────
+
+# ── Core Framework ─────────────────────────────
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+
+# ── Authentication & Security ──────────────────
+python-jose[cryptography]>=3.3.0      # JWT encoding/decoding
+passlib[bcrypt]>=1.7.4                 # Password hashing
+python-multipart>=0.0.18               # Form data parsing (OAuth2)
+
+# ── Database ───────────────────────────────────
+sqlalchemy>=2.0.36                     # ORM
+alembic>=1.14.0                        # Database migrations
+asyncpg>=0.30.0                        # Async PostgreSQL driver
+# psycopg2-binary>=2.9.10             # Sync PostgreSQL (uncomment if needed)
+
+# ── HTTP & API ─────────────────────────────────
+httpx>=0.28.0                          # Async HTTP client (for OAuth providers)
+email-validator>=2.2.0                 # Email validation for Pydantic
+
+# ── CORS & Middleware ──────────────────────────
+# (included in FastAPI, no extra install needed)
+
+# ── Dev / Testing ──────────────────────────────
+pytest>=8.3.0
+pytest-asyncio>=0.25.0
