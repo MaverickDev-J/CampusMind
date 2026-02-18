@@ -23,14 +23,14 @@ import {
 } from "lucide-react";
 
 // Mock Data
-const HISTORY = [
+const INITIAL_HISTORY = [
     { id: 1, title: "Quantum Physics Notes", time: "Today", active: true },
     { id: 2, title: "Calculus Review", time: "Today", active: false },
     { id: 3, title: "History Essay Outline", time: "Yesterday", active: false },
     { id: 4, title: "Biology Midterm Prep", time: "Yesterday", active: false },
 ];
 
-const MESSAGES = [
+const INITIAL_MESSAGES = [
     {
         id: 1,
         role: "user",
@@ -80,6 +80,14 @@ const CITATIONS = [
 export default function DeepLearnPage() {
     const [leftOpen, setLeftOpen] = useState(true);
     const [rightOpen, setRightOpen] = useState(true);
+    const [messages, setMessages] = useState(INITIAL_MESSAGES);
+    const [history, setHistory] = useState(INITIAL_HISTORY);
+
+    const handleNewChat = () => {
+        setMessages([]);
+        setHistory(prev => prev.map(chat => ({ ...chat, active: false })));
+        setRightOpen(false);
+    };
 
     return (
         <div className="flex flex-col h-screen w-full overflow-hidden bg-[#0a0e1a] text-slate-200">
@@ -97,7 +105,10 @@ export default function DeepLearnPage() {
                         >
                             {/* New Chat Button */}
                             <div className="p-4">
-                                <button className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium shadow-lg shadow-purple-900/20 transition-all">
+                                <button
+                                    onClick={handleNewChat}
+                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium shadow-lg shadow-purple-900/20 transition-all"
+                                >
                                     <Plus className="w-5 h-5" />
                                     New Chat
                                 </button>
@@ -109,12 +120,12 @@ export default function DeepLearnPage() {
                                 <div>
                                     <h3 className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Today</h3>
                                     <div className="space-y-1">
-                                        {HISTORY.filter(h => h.time === "Today").map(chat => (
+                                        {history.filter(h => h.time === "Today").map(chat => (
                                             <button
                                                 key={chat.id}
                                                 className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors ${chat.active
-                                                        ? "bg-slate-800/80 text-white shadow-sm border border-slate-700/50"
-                                                        : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
+                                                    ? "bg-slate-800/80 text-white shadow-sm border border-slate-700/50"
+                                                    : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
                                                     }`}
                                             >
                                                 <MessageSquare className="w-4 h-4 shrink-0" />
@@ -128,7 +139,7 @@ export default function DeepLearnPage() {
                                 <div>
                                     <h3 className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Yesterday</h3>
                                     <div className="space-y-1">
-                                        {HISTORY.filter(h => h.time === "Yesterday").map(chat => (
+                                        {history.filter(h => h.time === "Yesterday").map(chat => (
                                             <button
                                                 key={chat.id}
                                                 className="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 transition-colors"
@@ -176,59 +187,66 @@ export default function DeepLearnPage() {
                     <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 space-y-8 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
                         <div className="h-12" /> {/* Spacer for toggles */}
 
-                        {MESSAGES.map((msg) => (
-                            <div
-                                key={msg.id}
-                                className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                            >
-                                {msg.role === "ai" && (
-                                    <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/30">
-                                        <Sparkles className="w-4 h-4" />
-                                    </div>
-                                )}
-
-                                <div className={`max-w-[80%] space-y-2`}>
-                                    <div
-                                        className={`p-4 rounded-2xl text-sm leading-relaxed ${msg.role === "user"
-                                                ? "bg-blue-600 text-white rounded-tr-sm"
-                                                : "bg-[#0f1523] border border-slate-800 text-slate-200 rounded-tl-sm shadow-xl"
-                                            }`}
-                                    >
-                                        <p className="whitespace-pre-wrap">{msg.content}</p>
-                                    </div>
-
-                                    {/* Embedded Citation in AI Message */}
-                                    {msg.sources && (
-                                        <div className="bg-[#0f1523] border border-slate-800 rounded-xl p-3 flex items-center gap-3 hover:border-indigo-500/50 transition-colors cursor-pointer group">
-                                            <div className="w-16 h-10 rounded-lg bg-slate-800 flex items-center justify-center relative overflow-hidden">
-                                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20" />
-                                                <Play className="w-4 h-4 text-white fill-white" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-0.5">
-                                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-400 uppercase">Lecture 4</span>
-                                                    <span className="text-xs text-slate-500">Week 4 • Prof. Davis</span>
-                                                </div>
-                                                <p className="text-sm font-medium text-slate-200 group-hover:text-indigo-400 transition-colors truncate">
-                                                    Quantum Mechanics Intro
-                                                </p>
-                                            </div>
-                                            <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400" />
+                        {messages.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-full text-slate-500 opacity-60">
+                                <Sparkles className="w-12 h-12 mb-4 text-indigo-500/50" />
+                                <p className="text-lg font-medium">Start a new learning session</p>
+                            </div>
+                        ) : (
+                            messages.map((msg) => (
+                                <div
+                                    key={msg.id}
+                                    className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                                >
+                                    {msg.role === "ai" && (
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/30">
+                                            <Sparkles className="w-4 h-4" />
                                         </div>
                                     )}
 
-                                    <div className={`flex items-center gap-2 text-[10px] text-slate-500 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                                        <span>{msg.time}</span>
-                                    </div>
-                                </div>
+                                    <div className={`max-w-[80%] space-y-2`}>
+                                        <div
+                                            className={`p-4 rounded-2xl text-sm leading-relaxed ${msg.role === "user"
+                                                ? "bg-blue-600 text-white rounded-tr-sm"
+                                                : "bg-[#0f1523] border border-slate-800 text-slate-200 rounded-tl-sm shadow-xl"
+                                                }`}
+                                        >
+                                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                                        </div>
 
-                                {msg.role === "user" && (
-                                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
-                                        <span className="text-xs font-bold text-white">U</span>
+                                        {/* Embedded Citation in AI Message */}
+                                        {msg.sources && (
+                                            <div className="bg-[#0f1523] border border-slate-800 rounded-xl p-3 flex items-center gap-3 hover:border-indigo-500/50 transition-colors cursor-pointer group">
+                                                <div className="w-16 h-10 rounded-lg bg-slate-800 flex items-center justify-center relative overflow-hidden">
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20" />
+                                                    <Play className="w-4 h-4 text-white fill-white" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-400 uppercase">Lecture 4</span>
+                                                        <span className="text-xs text-slate-500">Week 4 • Prof. Davis</span>
+                                                    </div>
+                                                    <p className="text-sm font-medium text-slate-200 group-hover:text-indigo-400 transition-colors truncate">
+                                                        Quantum Mechanics Intro
+                                                    </p>
+                                                </div>
+                                                <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400" />
+                                            </div>
+                                        )}
+
+                                        <div className={`flex items-center gap-2 text-[10px] text-slate-500 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                                            <span>{msg.time}</span>
+                                        </div>
                                     </div>
-                                )}
-                            </div>
-                        ))}
+
+                                    {msg.role === "user" && (
+                                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
+                                            <span className="text-xs font-bold text-white">U</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
                     </div>
 
                     {/* Input Area */}
