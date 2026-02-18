@@ -4,9 +4,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from database.mongo import connect_db, close_db, get_db
 from api.routers import auth as auth_router
+from api.routers import admin as admin_router
+from api.routers import upload as upload_router
 
 
 # ── Lifespan ────────────────────────────────────────────────────────
@@ -18,11 +21,13 @@ async def lifespan(app: FastAPI):
     db = get_db()
     await db.users.create_index("email", unique=True)
     await db.users.create_index("user_id", unique=True)
-    print("✅  MongoDB connected & indexes ensured")
+    await db.file_metadata.create_index("sha256_hash", unique=True)
+    await db.file_metadata.create_index("file_id", unique=True)
+    print("[OK] MongoDB connected & indexes ensured")
     yield
     # Shutdown: close the connection
     await close_db()
-    print("🛑  MongoDB connection closed")
+    print("[STOP] MongoDB connection closed")
 
 
 # ── App ─────────────────────────────────────────────────────────────
@@ -45,6 +50,13 @@ app.add_middleware(
 # ── Routers ─────────────────────────────────────────────────────────
 
 app.include_router(auth_router.router)
+app.include_router(admin_router.router)
+app.include_router(upload_router.router)
+app.include_router(upload_router.files_router)
+
+# ── Static files ────────────────────────────────────────────────────
+
+app.mount("/static", StaticFiles(directory="storage/uploads"), name="static")
 
 
 # ── Health check ────────────────────────────────────────────────────

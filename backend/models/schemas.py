@@ -90,3 +90,9 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+# ── Admin schemas ───────────────────────────────────────────────────
+
+class AdminTargetUser(BaseModel):
+    target_user_id: str = Field(..., description="The user_id of the target student")
