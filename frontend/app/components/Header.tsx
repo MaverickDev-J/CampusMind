@@ -2,9 +2,21 @@
 
 import { Search, Cpu, Bell, LogOut } from "lucide-react";
 import { useAuth } from "@/app/context/auth-context";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
     const { user, logout } = useAuth();
+    const pathname = usePathname();
+
+    const tabs = [
+        { id: "dashboard", label: "Dashboard", path: "/" },
+        { id: "deep-base", label: "Deep Base", path: "/deep-base" },
+        { id: "deep-learn", label: "Deep Learn", path: "/deep-learn" },
+    ];
+
+    const activeTab = tabs.find(t => t.path === pathname)?.label || "Dashboard";
 
     // Get user initials for avatar
     const initials = user?.name
@@ -17,13 +29,13 @@ export default function Header() {
         : "CM";
 
     return (
-        <header className="relative z-10 flex items-center justify-between px-6 py-4 lg:px-10">
+        <header className="relative z-10 flex items-center justify-between px-6 py-4 lg:px-10 h-20">
             {/* Logo */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 relative z-20">
                 <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30">
                     <Cpu className="w-5 h-5 text-blue-400" />
                 </div>
-                <div>
+                <div className="hidden sm:block">
                     <h1 className="text-lg font-bold tracking-tight text-white">
                         Campus<span className="text-blue-400">Mind</span>
                     </h1>
@@ -33,15 +45,36 @@ export default function Header() {
                 </div>
             </div>
 
+            {/* Centered Navigation Tabs */}
+            <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-1 p-1.5 rounded-full bg-slate-900/40 border border-slate-700/30 backdrop-blur-md shadow-xl">
+                {tabs.map((tab) => (
+                    <Link
+                        key={tab.id}
+                        href={tab.path}
+                        className={`relative px-5 py-2 text-sm font-medium transition-colors duration-300 rounded-full ${activeTab === tab.label ? "text-white" : "text-slate-400 hover:text-slate-200"
+                            }`}
+                    >
+                        {activeTab === tab.label && (
+                            <motion.div
+                                layoutId="active-tab-indicator"
+                                className="absolute inset-0 bg-slate-700/60 rounded-full border border-slate-600/50"
+                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                            />
+                        )}
+                        <span className="relative z-10">{tab.label}</span>
+                    </Link>
+                ))}
+            </nav>
+
             {/* Right side */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 relative z-20">
                 {/* Search */}
-                <div className="relative hidden sm:block">
+                <div className="relative hidden xl:block">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                     <input
                         type="text"
                         placeholder="Global Search..."
-                        className="w-64 pl-10 pr-4 py-2.5 rounded-full bg-slate-800/60 border border-slate-700/50 text-sm text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 transition-all backdrop-blur-sm"
+                        className="w-56 pl-10 pr-4 py-2 rounded-full bg-slate-800/60 border border-slate-700/50 text-sm text-slate-300 placeholder-slate-500 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 transition-all backdrop-blur-sm"
                     />
                 </div>
 
@@ -61,7 +94,7 @@ export default function Header() {
                 </button>
 
                 {/* Avatar with user initials */}
-                <div className="relative group cursor-pointer">
+                <div className="relative group cursor-pointer hidden sm:block">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 p-[2px]">
                         <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center">
                             <span className="text-sm font-semibold text-white">{initials}</span>
