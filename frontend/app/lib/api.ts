@@ -1,120 +1,123 @@
 // ============================================================
 // NeuralCampus — FastAPI Backend API Helpers
 // ============================================================
-// TODO: Replace API_BASE_URL with your actual FastAPI server URL.
-// TODO: Once you have your OpenAPI JSON from FastAPI, you can
-//       auto-generate TypeScript types and replace the interfaces below.
-// ============================================================
 
-export const API_BASE_URL = "http://localhost:8000/api/v1";
+export const API_BASE_URL = "http://localhost:8000/api";
 
 // ── Types ───────────────────────────────────────────────────
-// TODO: Replace these with types generated from your FastAPI OpenAPI schema
 
 export interface LoginRequest {
-    email: string;
+    username: string; // FastAPI OAuth2PasswordRequestForm expects 'username' (which is email)
     password: string;
 }
 
 export interface SignupRequest {
-    name: string;
     email: string;
+    name: string;
     password: string;
+    role: "student" | "faculty" | "admin";
+    profile?: {
+        roll_no?: string;
+        branch?: string; // Enum: AI&DS, COMP, IT, etc.
+        year?: number;   // 1, 2, 3, 4
+        department?: string; // For faculty
+        [key: string]: any;
+    };
+    admin_secret_key?: string;
 }
 
 export interface AuthResponse {
     access_token: string;
     token_type: string;
-    user: {
-        id: string;
-        name: string;
-        email: string;
-        avatar?: string;
-    };
 }
 
 export interface UserProfile {
-    id: string;
-    name: string;
+    user_id: string;
     email: string;
-    avatar?: string;
-    year?: number;
-    department?: string;
+    name: string;
+    role: "student" | "faculty" | "admin";
+    institute_id: string;
+    profile: {
+        roll_no?: string;
+        branch?: string;
+        year?: number;
+        department?: string;
+        can_upload?: boolean;
+        [key: string]: any;
+    };
 }
 
 // ── API Functions ───────────────────────────────────────────
-// TODO: Implement these with actual fetch() calls to your FastAPI backend.
-// Each function below is a placeholder that mirrors a FastAPI route.
 
 /**
- * POST /api/v1/auth/login
- * FastAPI route: @router.post("/auth/login")
+ * POST /api/auth/login
+ * Form-urlencoded per OAuth2 spec
  */
 export async function apiLogin(data: LoginRequest): Promise<AuthResponse> {
-    // TODO: Uncomment and use when FastAPI backend is ready
-    //
-    // const res = await fetch(`${API_BASE_URL}/auth/login`, {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify(data),
-    // });
-    // if (!res.ok) {
-    //   const err = await res.json();
-    //   throw new Error(err.detail || "Login failed");
-    // }
-    // return res.json();
+    const formData = new URLSearchParams();
+    formData.append("username", data.username);
+    formData.append("password", data.password);
 
-    throw new Error("apiLogin not implemented — connect to FastAPI backend");
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData.toString(),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Login failed");
+    }
+
+    return res.json();
 }
 
 /**
- * POST /api/v1/auth/signup
- * FastAPI route: @router.post("/auth/signup")
+ * POST /api/auth/register
  */
-export async function apiSignup(data: SignupRequest): Promise<AuthResponse> {
-    // TODO: Uncomment and use when FastAPI backend is ready
-    //
-    // const res = await fetch(`${API_BASE_URL}/auth/signup`, {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify(data),
-    // });
-    // if (!res.ok) {
-    //   const err = await res.json();
-    //   throw new Error(err.detail || "Signup failed");
-    // }
-    // return res.json();
+export async function apiSignup(data: SignupRequest): Promise<UserProfile> { // Returns UserResponse, not Token
+    const res = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+    });
 
-    throw new Error("apiSignup not implemented — connect to FastAPI backend");
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Signup failed");
+    }
+
+    return res.json();
 }
 
 /**
- * GET /api/v1/auth/me
- * FastAPI route: @router.get("/auth/me")
+ * GET /api/users/me
  */
 export async function apiGetProfile(token: string): Promise<UserProfile> {
-    // TODO: Uncomment and use when FastAPI backend is ready
-    //
-    // const res = await fetch(`${API_BASE_URL}/auth/me`, {
-    //   headers: { Authorization: `Bearer ${token}` },
-    // });
-    // if (!res.ok) throw new Error("Failed to fetch profile");
-    // return res.json();
+    const res = await fetch(`${API_BASE_URL}/users/me`, {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+    });
 
-    throw new Error("apiGetProfile not implemented — connect to FastAPI backend");
+    if (!res.ok) {
+        throw new Error("Failed to fetch profile");
+    }
+
+    return res.json();
 }
 
 /**
- * POST /api/v1/auth/logout
- * FastAPI route: @router.post("/auth/logout")
+ * Logout (Client-side only)
  */
 export async function apiLogout(token: string): Promise<void> {
-    // TODO: Uncomment and use when FastAPI backend is ready
-    //
-    // await fetch(`${API_BASE_URL}/auth/logout`, {
-    //   method: "POST",
-    //   headers: { Authorization: `Bearer ${token}` },
-    // });
-
-    throw new Error("apiLogout not implemented — connect to FastAPI backend");
+    // Backend is stateless JWT, so we just discard token on client.
+    // If you had a blacklist/redis, you'd call an endpoint here.
+    return Promise.resolve();
 }

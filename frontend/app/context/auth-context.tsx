@@ -9,14 +9,17 @@ import {
     type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import {
+    apiLogin,
+    apiSignup,
+    apiGetProfile,
+    apiLogout,
+    type UserProfile,
+} from "@/app/lib/api";
 
 // ── Types ───────────────────────────────────────────────────
 
-export interface User {
-    id: string;
-    name: string;
-    email: string;
-    avatar?: string;
+export interface User extends UserProfile {
     token: string;
 }
 
@@ -25,21 +28,17 @@ interface AuthContextType {
     loading: boolean;
     error: string | null;
     login: (email: string, password: string) => Promise<void>;
-    signup: (name: string, email: string, password: string) => Promise<void>;
+    signup: (
+        name: string,
+        email: string,
+        password: string,
+        role: "student" | "faculty" | "admin",
+        profileData?: any,
+        adminSecret?: string
+    ) => Promise<void>;
     logout: () => void;
     clearError: () => void;
 }
-
-// ── Dummy user for development ──────────────────────────────
-const DUMMY_USER: User = {
-    id: "usr_neural_001",
-    name: "Aarav Sharma",
-    email: "demo@neuralcampus.ai",
-    avatar: undefined,
-    token: "dummy-jwt-token-neuralcampus-2026",
-};
-
-const DUMMY_PASSWORD = "neural123";
 
 // ── Cookie helpers ──────────────────────────────────────────
 
@@ -52,6 +51,7 @@ function removeAuthCookie() {
 }
 
 function getAuthCookie(): string | null {
+    if (typeof document === "undefined") return null;
     const match = document.cookie.match(/(?:^|; )neural-auth-token=([^;]*)/);
     return match ? match[1] : null;
 }
@@ -68,21 +68,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // ── Hydrate session on mount ────────────────────────────
     useEffect(() => {
-        const token = getAuthCookie();
-        if (token) {
-            // TODO: Replace with FastAPI call → apiGetProfile(token)
-            // For now, if the dummy token exists, restore the dummy user
-            if (token === DUMMY_USER.token) {
-                setUser(DUMMY_USER);
-            } else {
-                // TODO: When FastAPI is connected, fetch real profile:
-                // apiGetProfile(token)
-                //   .then(profile => setUser({ ...profile, token }))
-                //   .catch(() => { removeAuthCookie(); });
-                removeAuthCookie();
+        const initAuth = async () => {
+            const token = getAuthCookie();
+            if (!token) {
+                setLoading(false);
+                return;
             }
-        }
-        setLoading(false);
+
+            try {
+                const profile = await apiGetProfile(token);
+                setUser({ ...profile, token });
+            } catch (err) {
+                console.error("Session rehydration failed:", err);
+                removeAuthCookie();
+                setUser(null);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        initAuth();
     }, []);
 
     // ── Login ───────────────────────────────────────────────
@@ -92,37 +97,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(true);
 
             try {
-                // TODO: Replace this entire block with FastAPI backend call:
-                // ─────────────────────────────────────────────────────
-                // import { apiLogin } from "@/app/lib/api";
-                //
-                // const res = await apiLogin({ email, password });
-                // const loggedInUser: User = {
-                //   id: res.user.id,
-                //   name: res.user.name,
-                //   email: res.user.email,
-                //   avatar: res.user.avatar,
-                //   token: res.access_token,
-                // };
-                // setAuthCookie(res.access_token);
-                // setUser(loggedInUser);
-                // router.push("/");
-                // ─────────────────────────────────────────────────────
+                const { access_token } = await apiLogin({ username: email, password });
+                setAuthCookie(access_token);
 
-                // Dummy auth — remove when FastAPI is ready
-                await new Promise((r) => setTimeout(r, 800)); // simulate network delay
-                if (
-                    email.toLowerCase() === DUMMY_USER.email &&
-                    password === DUMMY_PASSWORD
-                ) {
-                    setAuthCookie(DUMMY_USER.token);
-                    setUser(DUMMY_USER);
-                    router.push("/");
-                } else {
-                    throw new Error("Invalid credentials. Try demo@neuralcampus.ai / neural123");
-                }
+                // Fetch full profile immediately
+                const profile = await apiGetProfile(access_token);
+                setUser({ ...profile, token: access_token });
+
+                router.push("/");
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Login failed");
+                throw err; // Re-throw so UI can handle shake animations etc.
             } finally {
                 setLoading(false);
             }
@@ -132,41 +117,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // ── Signup ──────────────────────────────────────────────
     const signup = useCallback(
-        async (name: string, email: string, password: string) => {
+        async (
+            name: string,
+            email: string,
+            password: string,
+            role: "student" | "faculty" | "admin",
+            profileData?: any,
+            adminSecret?: string
+        ) => {
             setError(null);
             setLoading(true);
 
             try {
-                // TODO: Replace this entire block with FastAPI backend call:
-                // ─────────────────────────────────────────────────────
-                // import { apiSignup } from "@/app/lib/api";
-                //
-                // const res = await apiSignup({ name, email, password });
-                // const newUser: User = {
-                //   id: res.user.id,
-                //   name: res.user.name,
-                //   email: res.user.email,
-                //   avatar: res.user.avatar,
-                //   token: res.access_token,
-                // };
-                // setAuthCookie(res.access_token);
-                // setUser(newUser);
-                // router.push("/");
-                // ─────────────────────────────────────────────────────
-
-                // Dummy signup — remove when FastAPI is ready
-                await new Promise((r) => setTimeout(r, 800));
-                const newUser: User = {
-                    id: "usr_new_" + Date.now(),
+                // 1. Register
+                await apiSignup({
                     name,
                     email,
-                    token: "dummy-jwt-signup-" + Date.now(),
-                };
-                setAuthCookie(newUser.token);
-                setUser(newUser);
+                    password,
+                    role,
+                    profile: profileData,
+                    admin_secret_key: adminSecret,
+                });
+
+                // 2. Auto-login
+                const { access_token } = await apiLogin({ username: email, password });
+                setAuthCookie(access_token);
+
+                // 3. Fetch profile
+                const profile = await apiGetProfile(access_token);
+                setUser({ ...profile, token: access_token });
+
                 router.push("/");
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Signup failed");
+                throw err;
             } finally {
                 setLoading(false);
             }
@@ -176,14 +160,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // ── Logout ──────────────────────────────────────────────
     const logout = useCallback(() => {
-        // TODO: Optionally call FastAPI logout endpoint:
-        // import { apiLogout } from "@/app/lib/api";
-        // apiLogout(user?.token || "").catch(() => {});
-
+        if (user?.token) {
+            apiLogout(user.token).catch(() => { });
+        }
         removeAuthCookie();
         setUser(null);
         router.push("/login");
-    }, [router]);
+    }, [router, user]);
 
     // ── Clear error ─────────────────────────────────────────
     const clearError = useCallback(() => setError(null), []);
