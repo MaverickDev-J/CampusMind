@@ -6,12 +6,20 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiofiles>=25.1.0",
+    "chromadb>=1.5.0",
     "fastapi>=0.129.0",
+    "google-genai>=1.63.0",
+    "langchain-core>=1.2.13",
+    "langchain-text-splitters>=1.1.0",
+    "langgraph>=1.0.8",
     "motor>=3.7.1",
     "passlib[bcrypt]>=1.7.4",
+    "pillow>=12.1.1",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.0",
     "pyjwt[crypto]>=2.11.0",
+    "pymupdf>=1.27.1",
+    "python-dotenv>=1.2.1",
     "python-multipart>=0.0.22",
     "uvicorn[standard]>=0.41.0",
 ]
