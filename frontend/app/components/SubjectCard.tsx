@@ -9,12 +9,13 @@ import { cn } from "@/app/lib/cn";
 interface SubjectCardProps {
     subject: Subject;
     index: number;
+    fileCount?: number;
 }
 
-export default function SubjectCard({ subject, index }: SubjectCardProps) {
+export default function SubjectCard({ subject, index, fileCount = 0 }: SubjectCardProps) {
     // Dynamically resolve the icon
     const IconComponent =
-        (LucideIcons as Record<string, React.ComponentType<{ className?: string }>>)[subject.icon] ||
+        (LucideIcons as any)[subject.icon] ||
         LucideIcons.BookOpen;
 
     return (
@@ -39,13 +40,18 @@ export default function SubjectCard({ subject, index }: SubjectCardProps) {
                     <h4 className="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors leading-tight truncate">
                         {subject.name}
                     </h4>
-                    <div className="flex items-center gap-2 mt-1.5">
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-400 tracking-wider">
                             {subject.code}
                         </span>
                         <span className="text-[10px] text-slate-500">
                             {subject.credits} Credits
                         </span>
+                        {fileCount > 0 && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                {fileCount} {fileCount === 1 ? 'File' : 'Files'}
+                            </span>
+                        )}
                     </div>
                 </div>
 
