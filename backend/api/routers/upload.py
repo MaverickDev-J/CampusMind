@@ -171,8 +171,9 @@ async def upload_file(
     }
     await db.file_metadata.insert_one(doc)
 
-    # ⑦ TRIGGER BACKGROUND TASK (STUB)
-    background_tasks.add_task(ingest_file_stub, file_id=file_id, file_type=file_type)
+    # ⑦ TRIGGER BACKGROUND INGESTION
+    from api.services.ingestion import process_file_background
+    background_tasks.add_task(process_file_background, file_id=file_id)
 
     # ⑧ RETURN RESPONSE
     return {
@@ -184,11 +185,11 @@ async def upload_file(
     }
 
 
-# ── Background task stub ───────────────────────────────────────────
+# ── Background task stub (kept as fallback) ────────────────────────
 
 async def ingest_file_stub(file_id: str, file_type: str):
-    """Placeholder -- Dev 3 replaces with real ChromaDB ingestion."""
-    logger.info(f"TODO: Ingest {file_id} ({file_type})")
+    """No-op stub -- replaced by api.services.ingestion."""
+    logger.info(f"Stub called for {file_id} ({file_type}) -- no-op")
 
 
 # ── GET /api/files ─────────────────────────────────────────────────

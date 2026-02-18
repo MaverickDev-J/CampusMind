@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from database.mongo import connect_db, close_db, get_db
+from database.chroma import connect_chroma
 from api.routers import auth as auth_router
 from api.routers import admin as admin_router
 from api.routers import upload as upload_router
@@ -24,6 +25,10 @@ async def lifespan(app: FastAPI):
     await db.file_metadata.create_index("sha256_hash", unique=True)
     await db.file_metadata.create_index("file_id", unique=True)
     print("[OK] MongoDB connected & indexes ensured")
+
+    # Startup: connect to ChromaDB
+    connect_chroma()
+    print("[OK] ChromaDB connected (campus_vectors collection ready)")
     yield
     # Shutdown: close the connection
     await close_db()
