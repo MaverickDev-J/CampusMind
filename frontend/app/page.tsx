@@ -1,18 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/app/context/auth-context";
 import Header from "@/app/components/Header";
 import HeroSection from "@/app/components/HeroSection";
 import YearSelector from "@/app/components/YearSelector";
 import SemesterSection from "@/app/components/SemesterSection";
 import { academicData } from "@/app/data";
+import { useFiles } from "@/app/hooks/useFiles";
 
 export default function Home() {
   const { user, loading } = useAuth();
   const [selectedYear, setSelectedYear] = useState(2);
+  const { files } = useFiles(selectedYear);
 
   const currentYear = academicData.find((y) => y.id === selectedYear);
+
+  const fileCounts = useMemo(() => {
+    return files.reduce((acc, file) => {
+      // The API returns 'subject' as the slug (e.g. 'os')
+      // matching our data.ts slug.
+      const slug = file.academic.subject;
+      acc[slug] = (acc[slug] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+  }, [files]);
 
   // Show loading state while auth hydrates
   if (loading) {
@@ -41,6 +53,7 @@ export default function Home() {
           <SemesterSection
             semesters={currentYear.semesters}
             yearId={currentYear.id}
+            fileCounts={fileCounts}
           />
         )}
       </main>

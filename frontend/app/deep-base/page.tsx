@@ -1,111 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/app/components/Header";
 import {
-    Search,
     Filter,
     BookOpen,
     Video,
     FileText,
     Beaker,
-    Clock,
     TrendingUp,
     Users,
-    Download,
     ChevronDown,
-    ChevronRight,
     Star,
-    MoreVertical,
     Plus,
     X,
     Upload,
     Image,
     PlayCircle,
-    File
+    CheckCircle2,
+    AlertCircle,
+    Loader2
 } from "lucide-react";
+import { useFiles, type FileMetadata } from "@/app/hooks/useFiles";
+import { useAuth } from "@/app/context/auth-context";
+import {
+    BRANCHES,
+    YEARS,
+    DOC_TYPES,
+    ACADEMIC_SUBJECTS,
+    type Subject
+} from "@/app/constants/academic";
 
-// Types
-type ResourceType = "Notes" | "Video" | "Paper" | "Lab";
-
-interface Resource {
-    id: string;
-    title: string;
-    subject: string;
-    author: string;
-    type: ResourceType;
-    year: string;
-    branch: string;
-    downloads: number;
-    rating: number;
-    thumbnail: string;
-}
-
-// Mock Data
-const RESOURCES: Resource[] = [
-    {
-        id: "1",
-        title: "Advanced Data Structures & Algorithms",
-        subject: "CS-3 • AI",
-        author: "Dr. Sharma",
-        type: "Notes",
-        year: "TE",
-        branch: "CS",
-        downloads: 1240,
-        rating: 4.8,
-        thumbnail: "bg-gradient-to-br from-blue-900 to-slate-900"
-    },
-    {
-        id: "2",
-        title: "Quantum Computing Fundamentals",
-        subject: "CS-5 • QC",
-        author: "Prof. Davis",
-        type: "Video",
-        year: "BE",
-        branch: "CS",
-        downloads: 850,
-        rating: 4.9,
-        thumbnail: "bg-gradient-to-br from-purple-900 to-slate-900"
-    },
-    {
-        id: "3",
-        title: "Neural Networks Lab Manual",
-        subject: "AI-DS • DL",
-        author: "Rahul K.",
-        type: "Lab",
-        year: "TE",
-        branch: "AI-DS",
-        downloads: 2100,
-        rating: 4.7,
-        thumbnail: "bg-gradient-to-br from-emerald-900 to-slate-900"
-    },
-    {
-        id: "4",
-        title: "DBMS Internals Research Paper",
-        subject: "IT-4 • DB",
-        author: "Sarah M.",
-        type: "Paper",
-        year: "TE",
-        branch: "IT",
-        downloads: 560,
-        rating: 4.5,
-        thumbnail: "bg-gradient-to-br from-indigo-900 to-slate-900"
-    },
-    {
-        id: "5",
-        title: "Operating Systems Concepts",
-        subject: "CS-4 • OS",
-        author: "Dr. Paterson",
-        type: "Notes",
-        year: "SE",
-        branch: "CS",
-        downloads: 3200,
-        rating: 4.9,
-        thumbnail: "bg-gradient-to-br from-orange-900 to-slate-900"
-    }
-];
-
+// Mock Notebooks (Keep for now)
 const NOTEBOOKS = [
     {
         id: "1",
@@ -121,48 +48,54 @@ const NOTEBOOKS = [
         thumbnail: "bg-gradient-to-br from-purple-900 to-slate-900",
         chats: 8
     },
-    {
-        id: "3",
-        title: "Data Structures Revision",
-        lastModified: "Dec 15",
-        thumbnail: "bg-gradient-to-br from-blue-900 to-slate-900",
-        chats: 24
-    },
-    {
-        id: "4",
-        title: "Operating Systems Lab",
-        lastModified: "Dec 10",
-        thumbnail: "bg-gradient-to-br from-emerald-900 to-slate-900",
-        chats: 5
-    },
-    {
-        id: "5",
-        title: "History of Computing",
-        lastModified: "Nov 28",
-        thumbnail: "bg-gradient-to-br from-orange-900 to-slate-900",
-        chats: 3
-    }
 ];
 
 const FILTER_SECTIONS = [
     {
         id: "year",
         name: "Year",
-        options: ["FE", "SE", "TE", "BE"]
+        options: YEARS.map(y => ({ label: y.label, value: y.value.toString() }))
     },
     {
         id: "branch",
         name: "Branch",
-        options: ["CS", "IT", "AI-DS", "EXTC", "MECH"]
+        options: BRANCHES.map(b => ({ label: b.label, value: b.value }))
     },
     {
         id: "type",
         name: "Type",
-        options: ["Notes", "Video", "Paper", "Lab"]
+        options: DOC_TYPES.map(d => ({ label: d.label, value: d.value })).concat([
+            { label: "Video", value: "video" }, // Special case for file_type=video
+        ])
     }
 ];
 
+// Helper to map UI filters to API params
+const mapFiltersToApi = (selected: Record<string, string[]>) => {
+    const filters: any = {};
+
+    // Year Mapping
+    if (selected.year?.length) {
+        filters.year = parseInt(selected.year[0]);
+    }
+
+    // Branch Mapping
+    if (selected.branch?.length) {
+        filters.branch = selected.branch[0];
+    }
+
+    // Type Mapping
+    if (selected.type?.length) {
+        const t = selected.type[0];
+        if (t === "video") filters.file_type = "video";
+        else filters.doc_type = t;
+    }
+
+    return filters;
+};
+
 export default function DeepBasePage() {
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<"all" | "notebook">("all");
     const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -171,60 +104,163 @@ export default function DeepBasePage() {
         type: true
     });
 
+    // Derive API filters from state
+    const apiFilters = useMemo(() => mapFiltersToApi(selectedFilters), [selectedFilters]);
+
+    // Fetch data
+    const { files, loading, error, refetch } = useFiles(apiFilters);
+
+    // Upload Modal State
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [uploadStep, setUploadStep] = useState<"details" | "file">("details");
+    const [uploadData, setUploadData] = useState({
+        year: "",
+        branch: "",
+        subject: "",
+        unit: "1",
+        doc_type: "notes",
+        file: null as File | null
+    });
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadStatus, setUploadStatus] = useState<"idle" | "success" | "error">("idle");
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Derived subject list for upload modal
+    const availableSubjects = useMemo(() => {
+        if (!uploadData.branch || !uploadData.year) return [];
+        const yr = parseInt(uploadData.year);
+        // Handle common first year if branch is not strictly defined in user map for year 1?
+        // User map has year 1 for all branches.
+        return ACADEMIC_SUBJECTS[uploadData.branch]?.[yr] || [];
+    }, [uploadData.branch, uploadData.year]);
+
     const toggleSection = (id: string) => {
         setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
-    const toggleFilter = (sectionId: string, option: string) => {
+    const toggleFilter = (sectionId: string, optionValue: string) => {
         setSelectedFilters(prev => {
             const current = prev[sectionId] || [];
-            const updated = current.includes(option)
-                ? current.filter(item => item !== option)
-                : [...current, option];
-            return { ...prev, [sectionId]: updated };
+            // Single select behavior
+            return {
+                ...prev,
+                [sectionId]: current.includes(optionValue) ? [] : [optionValue]
+            };
         });
     };
 
+    const handleUpload = async () => {
+        if (!uploadData.file || !uploadData.year || !uploadData.branch || !uploadData.subject || !uploadData.doc_type) return;
+
+        setIsUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", uploadData.file);
+            formData.append("year", uploadData.year);
+            formData.append("branch", uploadData.branch);
+            formData.append("subject", uploadData.subject);
+            formData.append("unit", uploadData.unit);
+            formData.append("doc_type", uploadData.doc_type);
+
+            const res = await fetch("http://localhost:8000/api/upload/file", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${user?.token}`
+                },
+                body: formData
+            });
+
+            if (!res.ok) throw new Error("Upload failed");
+
+            setUploadStatus("success");
+            setTimeout(() => {
+                setShowUploadModal(false);
+                setUploadStatus("idle");
+                setUploadData({ year: "", branch: "", subject: "", unit: "1", doc_type: "notes", file: null });
+                refetch?.(); // Refresh list if useFiles supports it (adding refetch to useFiles check next)
+                window.location.reload(); // Quick fix for refresh until useFiles update
+            }, 1500);
+
+        } catch (err) {
+            console.error(err);
+            setUploadStatus("error");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     // Card Component
-    const ResourceCard = ({ resource }: { resource: Resource }) => {
-        const Icon = {
-            "Notes": BookOpen,
-            "Video": Video,
-            "Paper": FileText,
-            "Lab": Beaker
-        }[resource.type];
+    const ResourceCard = ({ file }: { file: FileMetadata }) => {
+        let Icon = FileText;
+        let typeLabel = "FILE";
+
+        if (file.file_type === "video") {
+            Icon = Video;
+            typeLabel = "VIDEO";
+        } else if (file.file_type === "image") {
+            Icon = Image;
+            typeLabel = "IMAGE";
+        } else if (file.academic.doc_type === "notes") {
+            Icon = BookOpen;
+            typeLabel = "NOTES";
+        } else if (file.academic.doc_type === "lab") {
+            Icon = Beaker;
+            typeLabel = "LAB";
+        } else if (file.academic.doc_type === "pyq") {
+            Icon = FileText;
+            typeLabel = "PAPER";
+        }
+
+        const handleClick = () => {
+            const url = `http://localhost:8000${file.playback_url}`;
+            window.open(url, "_blank");
+        };
+
+        const authorName = file.uploaded_by || "Unknown";
+        // Find human readable subject name if possible
+        const subjectName = Object.values(ACADEMIC_SUBJECTS)
+            .flatMap(years => Object.values(years).flat())
+            .find(s => s.code === file.academic.subject)?.name || file.academic.subject;
 
         return (
             <motion.div
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
                 whileHover={{ y: -4, scale: 1.02 }}
-                className="group relative bg-[#0f1523] border border-slate-800 rounded-xl overflow-hidden hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer"
+                onClick={handleClick}
+                className="group relative bg-[#0f1523] border border-slate-800 rounded-xl overflow-hidden hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 transition-all cursor-pointer flex flex-col h-full"
             >
-                {/* Thumbnail */}
-                <div className={`h-32 w-full ${resource.thumbnail} relative p-4 flex flex-col justify-end`}>
-                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-black/40 backdrop-blur-sm text-[10px] font-medium text-white flex items-center gap-1">
-                        <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                        {resource.rating}
+                <div className="h-32 w-full bg-gradient-to-br from-slate-800 to-slate-900 relative p-4 flex flex-col justify-end group-hover:from-indigo-900/40 group-hover:to-slate-900 transition-colors">
+                    <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
+                        <span className="inline-block px-2 py-1 rounded bg-black/40 backdrop-blur-sm text-[10px] font-bold text-white mb-1 uppercase tracking-wider">
+                            {file.academic.branch || "GEN"} • {file.academic.year || "?"} • {file.academic.subject}
+                        </span>
+                        <div className="px-2 py-1 rounded-md bg-black/40 backdrop-blur-sm text-[10px] font-medium text-white flex items-center gap-1">
+                            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                            4.5
+                        </div>
                     </div>
-                    <span className="inline-block px-2 py-1 rounded bg-black/40 backdrop-blur-sm text-[10px] font-bold text-white w-fit mb-1">
-                        {resource.subject}
-                    </span>
-                    <h3 className="text-sm font-bold text-white leading-tight line-clamp-2">
-                        {resource.title}
+
+                    <h3 className="text-sm font-bold text-white leading-tight line-clamp-2 mt-auto">
+                        {subjectName}
                     </h3>
+                    <p className="text-[10px] text-slate-400 mt-1 truncate">
+                        {file.original_name}
+                    </p>
                 </div>
 
-                {/* Details */}
-                <div className="p-3">
-                    <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                <div className="p-3 mt-auto">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
                         <div className="flex items-center gap-1.5">
-                            <span className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-300">
-                                {resource.author[0]}
+                            <span className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-300 uppercase">
+                                {authorName.charAt(0)}
                             </span>
-                            <span className="truncate max-w-[80px]">{resource.author}</span>
+                            <span className="truncate max-w-[80px]">{authorName}</span>
                         </div>
                         <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400">
                             <Icon className="w-3 h-3" />
-                            <span className="uppercase text-[10px] font-bold">{resource.type}</span>
+                            <span className="uppercase text-[10px] font-bold">{typeLabel}</span>
                         </div>
                     </div>
                 </div>
@@ -259,14 +295,11 @@ export default function DeepBasePage() {
         </motion.div>
     );
 
-    const [showUploadModal, setShowUploadModal] = useState(false);
-    const [selectedFileFormat, setSelectedFileFormat] = useState<"pdf" | "image" | "video">("pdf");
-
     return (
         <div className="flex flex-col h-screen w-full bg-[#0a0e1a] text-slate-200 overflow-hidden">
             <Header />
 
-            {/* Create Notebook Modal */}
+            {/* Upload Modal */}
             <AnimatePresence>
                 {showUploadModal && (
                     <motion.div
@@ -281,9 +314,8 @@ export default function DeepBasePage() {
                             exit={{ scale: 0.95, opacity: 0 }}
                             className="w-full max-w-2xl bg-[#0f1523] border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden"
                         >
-                            {/* Modal Header */}
                             <div className="flex items-center justify-between p-4 border-b border-slate-800/50">
-                                <h2 className="text-lg font-bold text-white">Create New Notebook</h2>
+                                <h2 className="text-lg font-bold text-white">Upload Material</h2>
                                 <button
                                     onClick={() => setShowUploadModal(false)}
                                     className="text-slate-500 hover:text-slate-300 transition-colors"
@@ -292,101 +324,132 @@ export default function DeepBasePage() {
                                 </button>
                             </div>
 
-                            {/* Modal Content */}
                             <div className="p-6 space-y-6">
-                                <div className="text-center mb-6">
-                                    <h3 className="text-xl font-bold text-slate-200 mb-1">Upload Files & Create Notebook</h3>
-                                    <p className="text-xs text-slate-500">Supported extensions: PDF, Images, Docs, Audio, Video</p>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-semibold text-slate-400 uppercase">Select Year</label>
-                                        <div className="grid grid-cols-4 gap-2">
-                                            {[1, 2, 3, 4].map(year => (
-                                                <button key={year} className="py-2 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-300 hover:bg-slate-700/50 hover:text-white transition-colors text-sm font-medium">
-                                                    {year}
-                                                </button>
-                                            ))}
+                                {uploadStatus === "success" ? (
+                                    <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                                        <CheckCircle2 className="w-16 h-16 text-emerald-500" />
+                                        <h3 className="text-xl font-bold text-white">Upload Successful!</h3>
+                                        <p className="text-slate-400">Your file has been added to the knowledge base.</p>
+                                    </div>
+                                ) : uploadStatus === "error" ? (
+                                    <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                                        <AlertCircle className="w-16 h-16 text-red-500" />
+                                        <h3 className="text-xl font-bold text-white">Upload Failed</h3>
+                                        <p className="text-slate-400">Something went wrong. Please try again.</p>
+                                        <button
+                                            onClick={() => setUploadStatus("idle")}
+                                            className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700"
+                                        >
+                                            Try Again
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-slate-400 uppercase">Branch</label>
+                                                <select
+                                                    value={uploadData.branch}
+                                                    onChange={(e) => setUploadData({ ...uploadData, branch: e.target.value, subject: "" })}
+                                                    className="w-full py-2 px-3 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:border-indigo-500/50"
+                                                >
+                                                    <option value="">Select Branch</option>
+                                                    {BRANCHES.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-slate-400 uppercase">Year</label>
+                                                <select
+                                                    value={uploadData.year}
+                                                    onChange={(e) => setUploadData({ ...uploadData, year: e.target.value, subject: "" })}
+                                                    className="w-full py-2 px-3 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:border-indigo-500/50"
+                                                >
+                                                    <option value="">Select Year</option>
+                                                    {YEARS.map(y => <option key={y.value} value={y.value}>{y.label}</option>)}
+                                                </select>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-semibold text-slate-400 uppercase">Select Branch</label>
-                                        <select className="w-full py-2 px-3 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:border-indigo-500/50">
-                                            <option>Select Branch</option>
-                                            <option>CS</option>
-                                            <option>IT</option>
-                                            <option>AI-DS</option>
-                                        </select>
-                                    </div>
-                                </div>
 
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="col-span-2 space-y-2">
-                                        <label className="text-xs font-semibold text-slate-400 uppercase">Subject Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. Data Structures"
-                                            className="w-full py-2 px-3 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:border-indigo-500/50 placeholder:text-slate-600"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-semibold text-slate-400 uppercase">Unit/Module</label>
-                                        <input
-                                            type="number"
-                                            defaultValue={1}
-                                            className="w-full py-2 px-3 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:border-indigo-500/50"
-                                        />
-                                    </div>
-                                </div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="col-span-2 space-y-2">
+                                                <label className="text-xs font-semibold text-slate-400 uppercase">Subject</label>
+                                                <select
+                                                    value={uploadData.subject}
+                                                    onChange={(e) => setUploadData({ ...uploadData, subject: e.target.value })}
+                                                    disabled={!availableSubjects.length}
+                                                    className="w-full py-2 px-3 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:border-indigo-500/50 disabled:opacity-50"
+                                                >
+                                                    <option value="">{availableSubjects.length ? "Select Subject" : "Select Branch & Year first"}</option>
+                                                    {availableSubjects.map(s => <option key={s.code} value={s.code}>{s.code} - {s.name}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-semibold text-slate-400 uppercase">Unit</label>
+                                                <input
+                                                    type="number"
+                                                    value={uploadData.unit}
+                                                    onChange={(e) => setUploadData({ ...uploadData, unit: e.target.value })}
+                                                    className="w-full py-2 px-3 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:border-indigo-500/50"
+                                                />
+                                            </div>
+                                        </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase">Document Type</label>
-                                    <div className="flex p-1 bg-slate-800/50 rounded-lg">
-                                        {["Lecture", "Notes", "PYQ", "Lab", "Ref"].map(type => (
-                                            <button key={type} className="flex-1 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded-md transition-colors">
-                                                {type}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-semibold text-slate-400 uppercase">Document Type</label>
+                                            <div className="flex p-1 bg-slate-800/50 rounded-lg overflow-x-auto">
+                                                {DOC_TYPES.map(type => (
+                                                    <button
+                                                        key={type.value}
+                                                        onClick={() => setUploadData({ ...uploadData, doc_type: type.value })}
+                                                        className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${uploadData.doc_type === type.value
+                                                                ? "bg-indigo-600 text-white"
+                                                                : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
+                                                            }`}
+                                                    >
+                                                        {type.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
 
-                                {/* File Format Selection */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-semibold text-slate-400 uppercase">Select File Format</label>
-                                    <div className="grid grid-cols-3 gap-3">
-                                        {(["pdf", "image", "video"] as const).map(format => (
-                                            <button
-                                                key={format}
-                                                onClick={() => setSelectedFileFormat(format)}
-                                                className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all ${selectedFileFormat === format
-                                                        ? "bg-indigo-600/20 border-indigo-500 text-indigo-400 shadow-lg shadow-indigo-500/10"
-                                                        : "bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700/50 hover:text-slate-200"
-                                                    }`}
-                                            >
-                                                {format === "pdf" && <FileText className="w-5 h-5" />}
-                                                {format === "image" && <Image className="w-5 h-5" />}
-                                                {format === "video" && <PlayCircle className="w-5 h-5" />}
-                                                <span className="capitalize text-xs font-bold">{format}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
+                                        <div
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="border-2 border-dashed border-slate-700 bg-slate-800/20 rounded-xl p-8 flex flex-col items-center justify-center gap-3 hover:border-indigo-500/30 transition-colors group cursor-pointer relative"
+                                        >
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                className="hidden"
+                                                onChange={(e) => e.target.files && setUploadData({ ...uploadData, file: e.target.files[0] })}
+                                            />
+                                            {uploadData.file ? (
+                                                <div className="flex flex-col items-center">
+                                                    <FileText className="w-8 h-8 text-emerald-500 mb-2" />
+                                                    <p className="text-sm font-medium text-white">{uploadData.file.name}</p>
+                                                    <p className="text-xs text-slate-500">{(uploadData.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center group-hover:bg-indigo-500/10 transition-colors">
+                                                        <Upload className="w-5 h-5 text-slate-400 group-hover:text-indigo-400" />
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <p className="text-sm font-medium text-slate-300">Click to upload file</p>
+                                                        <p className="text-xs text-slate-500">PDF, Images, Video</p>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
 
-                                {/* Drag & Drop Area */}
-                                <div className="border-2 border-dashed border-slate-700 bg-slate-800/20 rounded-xl p-8 flex flex-col items-center justify-center gap-3 hover:border-indigo-500/30 transition-colors group cursor-pointer">
-                                    <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center group-hover:bg-indigo-500/10 transition-colors">
-                                        <Upload className="w-5 h-5 text-slate-400 group-hover:text-indigo-400" />
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-sm font-medium text-slate-300">Click to upload {selectedFileFormat}</p>
-                                        <p className="text-xs text-slate-500">or drag and drop file here</p>
-                                    </div>
-                                </div>
-
-                                <button className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-all shadow-lg shadow-indigo-500/20">
-                                    Create Notebook
-                                </button>
+                                        <button
+                                            onClick={handleUpload}
+                                            disabled={isUploading || !uploadData.file}
+                                            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        >
+                                            {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Upload Material"}
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </motion.div>
                     </motion.div>
@@ -394,7 +457,6 @@ export default function DeepBasePage() {
             </AnimatePresence>
 
             <div className="flex flex-1 overflow-hidden relative">
-
                 {/* ── Left Sidebar: Filter Resources ──────────────── */}
                 <aside className="w-64 h-full bg-[#070b14] border-r border-slate-800/50 flex flex-col shrink-0 z-20">
                     <div className="p-5 border-b border-slate-800/50">
@@ -425,15 +487,15 @@ export default function DeepBasePage() {
                                     >
                                         {section.options.map((option) => (
                                             <button
-                                                key={option}
-                                                onClick={() => toggleFilter(section.id, option)}
-                                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between group ${selectedFilters[section.id]?.includes(option)
+                                                key={option.value} // Use value here
+                                                onClick={() => toggleFilter(section.id, option.value)}
+                                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between group ${selectedFilters[section.id]?.includes(option.value)
                                                     ? "bg-indigo-600/10 text-indigo-400 font-medium"
                                                     : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
                                                     }`}
                                             >
-                                                {option}
-                                                {selectedFilters[section.id]?.includes(option) && (
+                                                {option.label} {/* Show Label */}
+                                                {selectedFilters[section.id]?.includes(option.value) && (
                                                     <motion.div layoutId={`check-${section.id}`} className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                                                 )}
                                             </button>
@@ -454,10 +516,7 @@ export default function DeepBasePage() {
                     </div>
                 </aside>
 
-                {/* ── Main Content Area ───────────────────────────── */}
                 <main className="flex-1 overflow-y-auto p-6 lg:p-10 scrollbar-thin scrollbar-thumb-slate-800">
-
-                    {/* Tab Switcher & Upload Button */}
                     <div className="flex items-center justify-between mb-8">
                         <div className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-xl w-fit border border-slate-800">
                             <button
@@ -490,75 +549,40 @@ export default function DeepBasePage() {
                     </div>
 
                     {activeTab === "all" ? (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            {/* Trending Section */}
-                            <section className="mb-10">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <TrendingUp className="w-5 h-5 text-indigo-500" />
-                                        Trending in CS-3
-                                    </h2>
-                                    <button className="text-xs text-slate-500 hover:text-indigo-400 flex items-center gap-1 transition-colors">
-                                        View All <ChevronRight className="w-3 h-3" />
-                                    </button>
+                        <div className="space-y-6">
+                            {loading && (
+                                <div className="text-center py-20 text-slate-500">
+                                    <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                                    Loading resources...
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                    {RESOURCES.map(res => <ResourceCard key={`trend-${res.id}`} resource={res} />)}
-                                </div>
-                            </section>
+                            )}
 
-                            {/* Recently Uploaded */}
-                            <section className="mb-10">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <Clock className="w-5 h-5 text-emerald-500" />
-                                        Recently Uploaded
-                                    </h2>
+                            {error && (
+                                <div className="text-center py-20 text-red-400 bg-red-500/10 rounded-xl border border-red-500/20">
+                                    <p>Error: {error}</p>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                    {RESOURCES.slice(0, 4).map(res => <ResourceCard key={`recent-${res.id}`} resource={res} />)}
-                                </div>
-                            </section>
+                            )}
 
-                            {/* Faculty Uploads */}
-                            <section className="mb-10">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <Users className="w-5 h-5 text-purple-500" />
-                                        Faculty Uploads
-                                    </h2>
+                            {!loading && !error && files.length === 0 && (
+                                <div className="text-center py-20 text-slate-500">
+                                    <p>No resources found matching your filters.</p>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                    {RESOURCES.slice(2, 5).map(res => <ResourceCard key={`faculty-${res.id}`} resource={res} />)}
-                                </div>
-                            </section>
+                            )}
 
-                            {/* Student Notes */}
-                            <section>
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <FileText className="w-5 h-5 text-blue-500" />
-                                        Student Notes
-                                    </h2>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                    {RESOURCES.slice(0, 3).map(res => <ResourceCard key={`student-${res.id}`} resource={res} />)}
-                                </div>
-                            </section>
-                        </motion.div>
+                            {!loading && files.length > 0 && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+                                >
+                                    {files.map((file) => (
+                                        <ResourceCard key={file.file_id} file={file} />
+                                    ))}
+                                </motion.div>
+                            )}
+                        </div>
                     ) : (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4"
-                        >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                             <motion.button
                                 onClick={() => setShowUploadModal(true)}
                                 whileHover={{ scale: 1.02, backgroundColor: "rgba(15, 23, 42, 0.5)" }}
@@ -573,7 +597,7 @@ export default function DeepBasePage() {
                             {NOTEBOOKS.map(notebook => (
                                 <NotebookCard key={notebook.id} notebook={notebook} />
                             ))}
-                        </motion.div>
+                        </div>
                     )}
 
                 </main>

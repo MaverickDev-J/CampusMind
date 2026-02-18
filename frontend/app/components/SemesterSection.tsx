@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import { GraduationCap } from "lucide-react";
 import SubjectCard from "./SubjectCard";
 import type { Semester } from "@/app/data";
@@ -8,9 +8,10 @@ import type { Semester } from "@/app/data";
 interface SemesterSectionProps {
     semesters: Semester[];
     yearId: number;
+    fileCounts?: Record<string, number>;
 }
 
-const containerVariants = {
+const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
         opacity: 1,
@@ -26,7 +27,7 @@ const containerVariants = {
     },
 };
 
-const semesterVariants = {
+const semesterVariants: Variants = {
     hidden: { opacity: 0, y: 25 },
     visible: {
         opacity: 1,
@@ -35,7 +36,7 @@ const semesterVariants = {
     },
 };
 
-export default function SemesterSection({ semesters, yearId }: SemesterSectionProps) {
+export default function SemesterSection({ semesters, yearId, fileCounts }: SemesterSectionProps) {
     return (
         <div className="relative z-10 px-6 lg:px-10 mt-8">
             <AnimatePresence mode="wait">
@@ -76,6 +77,7 @@ export default function SemesterSection({ semesters, yearId }: SemesterSectionPr
                                         key={subject.id}
                                         subject={subject}
                                         index={index}
+                                        fileCount={fileCounts?.[subject.slug] || 0}
                                     />
                                 ))}
                             </div>
