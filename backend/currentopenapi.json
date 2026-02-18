@@ -473,6 +473,176 @@
                 }
             }
         },
+        "/api/chat/sessions": {
+            "get": {
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "List Sessions",
+                "description": "Return all chat sessions for the authenticated user, newest first.",
+                "operationId": "list_sessions_api_chat_sessions_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Create Session",
+                "description": "Create a new chat session.\n\nIf ``file_id`` is provided the file must exist in ``file_metadata``\nwith ``processing.status == \"completed\"`` (i.e. fully ingested).",
+                "operationId": "create_session_api_chat_sessions_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateSessionBody",
+                                "default": {}
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    }
+                ]
+            }
+        },
+        "/api/chat/sessions/{session_id}/history": {
+            "get": {
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Load History",
+                "description": "Return all messages for a session, sorted chronologically.\n\nSecurity: the session must belong to the requesting user.",
+                "operationId": "load_history_api_chat_sessions__session_id__history_get",
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "session_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Session Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/chat/sessions/{session_id}/message": {
+            "post": {
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Chat Message",
+                "description": "Send a message and stream the AI response via SSE.\n\nThe endpoint orchestrates the LangGraph nodes manually so we get\nreal per-token streaming from Gemini.\n\nSSE event types: ``status``, ``token``, ``sources``, ``done``, ``error``",
+                "operationId": "chat_message_api_chat_sessions__session_id__message_post",
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "session_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Session Id"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChatMessageBody"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "tags": [
@@ -606,6 +776,47 @@
                     "doc_type"
                 ],
                 "title": "Body_upload_file_api_upload_file_post"
+            },
+            "ChatMessageBody": {
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "title": "Query"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "query"
+                ],
+                "title": "ChatMessageBody"
+            },
+            "CreateSessionBody": {
+                "properties": {
+                    "title": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Title"
+                    },
+                    "file_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "File Id"
+                    }
+                },
+                "type": "object",
+                "title": "CreateSessionBody"
             },
             "HTTPValidationError": {
                 "properties": {

@@ -1,0 +1,45 @@
+Session: sess_b0b66e9d0f9e
+
+=== TEST 1: RAG Query ===
+  [STATUS  ] "Analyzing your question..."
+  [STATUS  ] "Routing..."
+  [STATUS  ] "Generating answer..."
+  [SOURCES ] []
+  [DONE    ] ""
+  [TOKENS]  17 chunks, 3758 chars
+  [PREVIEW] Neural networks are a fundamental concept in artificial intelligence and machine learning, inspired by the structure and function of the human brain.
+
+### What are Neural Networks?
+
+At their core, neu...
+  [DB]      2 messages saved
+            [user] Explain me about neural networks...
+            [assistant] Neural networks are a fundamental concept in artificial intelligence and machine...
+
+=== TEST 2: Conversational Query ===
+  [STATUS  ] "Analyzing your question..."
+  [STATUS  ] "Routing..."
+  [STATUS  ] "Generating answer..."
+  [SOURCES ] []
+  [DONE    ] ""
+  [TOKENS]  18 chunks, 3522 chars
+  [PREVIEW] No problem! Let's break down neural networks into simpler terms.
+
+Imagine you're trying to teach a child to recognize different animals.
+
+### What is a Neural Network?
+
+Think of a neural network as a ...
+  [DB]      4 messages total (should be 4)
+
+=== TEST 3: Out of Scope ===
+  [STATUS  ] "Analyzing your question..."
+  [STATUS  ] "Routing..."
+  [STATUS  ] "Generating answer..."
+  [SOURCES ] []
+  [DONE    ] ""
+  [TOKENS]  2 chunks, 146 chars
+  [PREVIEW] I'm here to help with your academic studies. I can't help with that topic, but I can help you with your coursework. What subject are you studying?...
+  [DB]      6 messages total (should be 6)
+
+=== ALL TESTS COMPLETE ===
