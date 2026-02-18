@@ -29,9 +29,20 @@ env/
 .DS_Store
 Thumbs.db
 
-# Local Storage (uploads and temp files)
+# Local Storage (uploads, temp files, vector DB)
 backend/storage/
+backend/chroma_data/
 
-# Local Test Files
+# Test files & results
 test_upload_files/
 testfiles/
+backend/scripts/test_results.txt
+backend/scripts/test_rag_results.txt
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# Stray files
+,giti
