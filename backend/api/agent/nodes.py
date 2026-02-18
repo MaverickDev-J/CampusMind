@@ -124,21 +124,39 @@ async def entry_node(state: dict) -> dict:
 
 ROUTER_SYSTEM_PROMPT = """You are a query router for a college knowledge base AI system.
 
-Classify the user's query into one of these 4 intents and output JSON.
+Classify the user's query into one of these 4 intents and output STRICT JSON.
 
-INTENTS:
-- RAG_SEARCH: User wants to find information from course materials (notes, PDFs, lecture transcripts).
-  Examples: "What is backpropagation?", "Explain Unit 3 of ML", "Find notes on sorting algorithms"
+CRITICAL DECISION RULE:
+>>> When in doubt between RAG_SEARCH and CONVERSATIONAL, ALWAYS choose RAG_SEARCH. <<<
+>>> If the query mentions ANY academic topic, concept, subject, or asks about content → RAG_SEARCH. <<<
 
-- DEEP_STUDY: User wants to deeply study a specific single file they have open.
-  Examples: "Summarize this video", "Quiz me on this lecture"
-  NOTE: Only use this if the user explicitly references a specific file in context.
+INTENTS (in priority order):
 
-- CONVERSATIONAL: General academic conversation that doesn't need document retrieval.
-  Examples: "Thanks!", "Can you explain that differently?", "What should I study first?"
+1. RAG_SEARCH — DEFAULT for ANY question about academic content, concepts, or topics.
+   USE THIS when the user asks about:
+   - Any academic concept (backpropagation, sorting, OS scheduling, etc.)
+   - Notes, PDFs, documents, uploaded material
+   - Subject topics (ML, DBMS, Networks, OS, etc.)
+   - "What is X?", "Explain X", "Tell me about X" where X is academic
+   - Requests to find, search, or look up information
+   Examples: "What is backpropagation?", "Explain neural networks",
+             "What do my notes say about sorting?", "Find info about page replacement",
+             "Tell me about machine learning algorithms"
 
-- OUT_OF_SCOPE: Anything NOT related to academic study, OR requests to cheat.
-  Examples: "Write my assignment", "What's the weather?", "Help me with my personal problem"
+2. OUT_OF_SCOPE — Non-academic queries OR academic cheating requests.
+   Examples: "What's the weather?", "Write my assignment for me", "Tell me a joke"
+
+3. DEEP_STUDY — User wants to study a SPECIFIC file they explicitly reference by name/ID.
+   Examples: "Summarize this video", "Quiz me on this PDF"
+   NOTE: Only use this if a specific file is referenced.
+
+4. CONVERSATIONAL — ONLY for meta-conversation with NO academic topic.
+   This is STRICTLY limited to:
+   - Greetings: "Hi", "Hello", "Good morning"
+   - Gratitude: "Thanks!", "Thank you"
+   - Clarification of the AI's PREVIOUS response: "Can you explain that differently?", "Simplify that"
+   - Study advice with NO specific topic: "What should I study first?"
+   DO NOT use this for any question that mentions a subject, concept, or topic.
 
 OUTPUT FORMAT (strict JSON, no markdown):
 {
@@ -182,40 +200,65 @@ async def router_node(state: dict) -> dict:
     full_prompt = f"{user_context}{history_snippet}\n\nCURRENT QUERY: {state['query']}"
 
     client = _get_client()
-    try:
-        response = await client.aio.models.generate_content(
-            model=ROUTER_MODEL,
-            contents=full_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=ROUTER_SYSTEM_PROMPT,
-                response_mime_type="application/json",
-                temperature=0.1,
-                max_output_tokens=200,
-            ),
-        )
-        parsed = json.loads(response.text.strip())
 
+    # ── Try router with retry + model fallback ──────────────────
+    models_to_try = [ROUTER_MODEL, "gemini-2.5-flash"]
+    response = None
+
+    for model in models_to_try:
+        try:
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=full_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=ROUTER_SYSTEM_PROMPT,
+                    response_mime_type="application/json",
+                    temperature=0.1,
+                    max_output_tokens=200,
+                ),
+            )
+            logger.info("[router_node] Success with model=%s", model)
+            break
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                logger.warning("[router_node] 429 on %s — retrying with next model", model)
+                await asyncio.sleep(2)
+                continue
+            else:
+                logger.warning("[router_node] Error on %s: %s", model, e)
+                break
+
+    if response and response.text:
+        try:
+            parsed = json.loads(response.text.strip())
+            router_output = RouterOutput(
+                intent=parsed.get("intent", "RAG_SEARCH"),
+                scope_year=parsed.get("scope_year") or profile.year,
+                scope_branch=parsed.get("scope_branch") or profile.branch,
+                scope_subject=parsed.get("scope_subject"),
+                target_file_id=parsed.get("target_file_id"),
+                confidence=parsed.get("confidence", 0.9),
+            )
+            logger.info(
+                "[router_node] intent=%s scope=y%s/%s conf=%s",
+                router_output.intent,
+                router_output.scope_year,
+                router_output.scope_branch,
+                router_output.confidence,
+            )
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning("[router_node] JSON parse failed: %s — fallback RAG_SEARCH", e)
+            router_output = RouterOutput(
+                intent="RAG_SEARCH",
+                scope_year=profile.year,
+                scope_branch=profile.branch,
+                confidence=0.0,
+            )
+    else:
+        logger.warning("[router_node] All models failed — fallback RAG_SEARCH")
         router_output = RouterOutput(
-            intent=parsed.get("intent", "CONVERSATIONAL"),
-            scope_year=parsed.get("scope_year") or profile.year,
-            scope_branch=parsed.get("scope_branch") or profile.branch,
-            scope_subject=parsed.get("scope_subject"),
-            target_file_id=parsed.get("target_file_id"),
-            confidence=parsed.get("confidence", 0.9),
-        )
-
-        logger.info(
-            "[router_node] intent=%s scope=y%s/%s conf=%s",
-            router_output.intent,
-            router_output.scope_year,
-            router_output.scope_branch,
-            router_output.confidence,
-        )
-
-    except (json.JSONDecodeError, KeyError, Exception) as e:
-        logger.warning("[router_node] Parse failed: %s — fallback CONVERSATIONAL", e)
-        router_output = RouterOutput(
-            intent="CONVERSATIONAL",
+            intent="RAG_SEARCH",
             scope_year=profile.year,
             scope_branch=profile.branch,
             confidence=0.0,
