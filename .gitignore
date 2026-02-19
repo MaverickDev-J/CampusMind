@@ -38,11 +38,11 @@ test_upload_files/
 testfiles/
 backend/scripts/test_results.txt
 backend/scripts/test_rag_results.txt
+backend/scripts/full_system_results.txt
+backend/scripts/full_system_test.py
+check.py
 
 # Node / Next.js
 node_modules/
 .next/
 out/
-
-# Stray files
-,giti
