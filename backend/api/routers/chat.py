@@ -199,6 +199,7 @@ async def chat_message(
             "query": query,
             "session_id": session_id,
             "user_id": user_id,
+            "file_id": session.get("file_id"),   # scoped file (may be None)
         }
 
         try:

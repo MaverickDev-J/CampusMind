@@ -1,35 +1,31 @@
-Session: sess_b0b66e9d0f9e
+Session: sess_4869461ddf4e
 
 === TEST 1: RAG Query ===
   [STATUS  ] "Analyzing your question..."
   [STATUS  ] "Routing..."
+  [STATUS  ] "Searching knowledge base..."
   [STATUS  ] "Generating answer..."
   [SOURCES ] []
   [DONE    ] ""
-  [TOKENS]  17 chunks, 3758 chars
-  [PREVIEW] Neural networks are a fundamental concept in artificial intelligence and machine learning, inspired by the structure and function of the human brain.
+  [TOKENS]  3 chunks, 486 chars
+  [PREVIEW] I couldn't find any specific notes or documents matching "section 7 page 57 onwards" that discuss Page Replacement Algorithms in the course materials I have access to.
 
-### What are Neural Networks?
-
-At their core, neu...
+It's possible the document migh...
   [DB]      2 messages saved
-            [user] Explain me about neural networks...
-            [assistant] Neural networks are a fundamental concept in artificial intelligence and machine...
+            [user] what are the different Page Replacement Algorithms section 7 page 57 onwards?...
+            [assistant] I couldn't find any specific notes or documents matching "section 7 page 57 onwa...
 
 === TEST 2: Conversational Query ===
   [STATUS  ] "Analyzing your question..."
   [STATUS  ] "Routing..."
+  [STATUS  ] "Searching knowledge base..."
   [STATUS  ] "Generating answer..."
-  [SOURCES ] []
+  [SOURCES ] [{"file_name": "unit 4 os.pptx.pdf", "file_type": "pdf", "page_number": 6, "timestamp_start": null, "timestamp_end": nul
   [DONE    ] ""
-  [TOKENS]  18 chunks, 3522 chars
-  [PREVIEW] No problem! Let's break down neural networks into simpler terms.
+  [TOKENS]  4 chunks, 687 chars
+  [PREVIEW] I still couldn't find any specific information about "Page Replacement Algorithms" in the course materials provided. The documents mostly cover topics related to deep learning, such as:
 
-Imagine you're trying to teach a child to recognize different animals.
-
-### What is a Neural Network?
-
-Think of a neural network as a ...
+*   **Backpro...
   [DB]      4 messages total (should be 4)
 
 === TEST 3: Out of Scope ===
@@ -38,8 +34,8 @@ Think of a neural network as a ...
   [STATUS  ] "Generating answer..."
   [SOURCES ] []
   [DONE    ] ""
-  [TOKENS]  2 chunks, 146 chars
-  [PREVIEW] I'm here to help with your academic studies. I can't help with that topic, but I can help you with your coursework. What subject are you studying?...
+  [TOKENS]  1 chunks, 166 chars
+  [PREVIEW] I'm here to help with your academic studies. I can't assist with that request, but I'm happy to help you with any of your coursework. What subject are you working on?...
   [DB]      6 messages total (should be 6)
 
 === ALL TESTS COMPLETE ===

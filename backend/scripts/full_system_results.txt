@@ -1,0 +1,57 @@
+CampusMind Full System Test — 2026-02-19 10:51:32
+Server: http://127.0.0.1:8000
+
+======================================================================
+PHASE 0: THE CLEAN SLATE
+======================================================================
+  [MONGO] Dropped users: 3 docs removed
+  [MONGO] Dropped file_metadata: 0 docs removed
+  [MONGO] Dropped chat_sessions: 1 docs removed
+  [MONGO] Dropped chat_history: 4 docs removed
+  [MONGO] ✅ All collections wiped
+  [CHROMA] Deleted collection 'campus_vectors'
+  [CHROMA] ✅ Collection recreated (empty)
+  [STORAGE] ✅ Cleared upload directories
+
+======================================================================
+PHASE 1: ACTOR REGISTRATION
+======================================================================
+  ✅ Registered faculty.cs@tcet.com → user_id=fac_99afd4d9bbb7
+  🔑 Login faculty.cs@tcet.com → token obtained
+  ✅ Registered faculty.ai@tcet.com → user_id=fac_d70dca723f3b
+  🔑 Login faculty.ai@tcet.com → token obtained
+  ✅ Registered student.demo@tcet.com → user_id=stu_4cdcf630442d
+  🔑 Login student.demo@tcet.com → token obtained
+
+======================================================================
+PHASE 2: SEED DEMO DATASET
+======================================================================
+
+  Using Token A (Faculty CS):
+  📤 Uploaded NWT chp 1.pdf → file_id=file_004fd735c27749c8a4ae3dea15db01dc  status=pending
+  📤 Uploaded Operating_system_mod4.pdf → file_id=file_e03fb3dee24746fea75cf12915a80840  status=pending
+
+  Using Token B (Faculty AI):
+  📤 Uploaded ai_drug.png → file_id=file_ad0b1cc3fcc74c3da68183d250512d86  status=pending
+  📤 Uploaded software_engineering.png → file_id=file_c3ad4e60f7fa4d8884872068ee788e5d  status=pending
+
+  Polling for processing completion (4 files)...
+  ⏳ Waiting... 4 files still processing (0s elapsed)
+  ❌ file_c3ad4e60f7fa4d8884872068ee788e5d → FAILED: Error getting collection: Collection [ee98327d-38dd-4eef-ab68-54378d25901a] does not exist.
+  ❌ file_004fd735c27749c8a4ae3dea15db01dc → FAILED: Error getting collection: Collection [ee98327d-38dd-4eef-ab68-54378d25901a] does not exist.
+  ❌ file_ad0b1cc3fcc74c3da68183d250512d86 → FAILED: Error getting collection: Collection [ee98327d-38dd-4eef-ab68-54378d25901a] does not exist.
+  ⏳ Waiting... 1 files still processing (10s elapsed)
+  ⏳ Waiting... 1 files still processing (20s elapsed)
+  ❌ file_e03fb3dee24746fea75cf12915a80840 → FAILED: 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/embed_content_free_tier_requests, limit: 100, model: gemini-embedding-1.0\nPlease retry in 57.925049182s.', 'status': 'RESOURCE_EXHAUST
+
+======================================================================
+PHASE 3: RAG VERIFICATION
+======================================================================
+
+  📋 Session created: sess_b26886f9f034
+
+  ────────────────────────────────────────────────────────────
+  QUERY 1: Text RAG (NWT)
+  Goal: Retrieve from NWT chp 1.pdf
+  Query: "Explain Wide Area Network (WAN) from NWT chp 1."
+  ────────────────────────────────────────────────────────────

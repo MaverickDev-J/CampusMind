@@ -1,4 +1,4 @@
-Session: sess_ae1ea5fcc0fd
+Session: sess_3b35ccad9740
 
 === RAG TEST 1: What do the uploaded notes say about backpropagation? ===
   [STATUS  ] "Analyzing your question..."
@@ -14,7 +14,7 @@ Session: sess_ae1ea5fcc0fd
      -> Module 02.pdf  page=8  type=pdf  score=0.7647
      -> Module 02.pdf  page=9  type=pdf  score=0.7522
      -> Module 02.pdf  page=1  type=pdf  score=0.7513
-  [RESPONSE] 19 chunks, 4042 chars
+  [RESPONSE] 19 chunks, 3908 chars
   [CITES?]  YES
   [PREVIEW] According to your notes, backpropagation is a fundamental algorithm in deep learning used to train artificial neural networks, especially feed-forward networks [Module 02.pdf, Page 7].
 
@@ -25,22 +25,15 @@ Here's a breakdown of what your notes say about backpropagation:...
   [STATUS  ] "Routing..."
   [STATUS  ] "Searching knowledge base..."
   [STATUS  ] "Generating answer..."
-  [SOURCES ] [{"file_name": "Module 02.pdf", "file_type": "pdf", "page_number": 1, "timestamp_start": null, "timestamp_end": null, "relevance_score": 0.7345}, {"fi
+  [SOURCES ] []
   [DONE    ] ""
   [RAG HIT] YES - retriever_vector_node was called
-  [SOURCES] 8 source(s) returned
-     -> Module 02.pdf  page=1  type=pdf  score=0.7345
-     -> Module 02.pdf  page=1  type=pdf  score=0.7257
-     -> Module 02.pdf  page=2  type=pdf  score=0.7243
-     -> Module 02.pdf  page=5  type=pdf  score=0.7228
-     -> Module 02.pdf  page=1  type=pdf  score=0.7226
-  [RESPONSE] 23 chunks, 4016 chars
+  [SOURCES] 0 source(s) returned
+  [RESPONSE] 2 chunks, 266 chars
   [CITES?]  YES
-  [PREVIEW] Your course material provides a comprehensive introduction to neural networks, particularly focusing on Feedforward Neural Networks (FNNs).
+  [PREVIEW] I couldn't find any specific notes or documents in your uploaded course material that directly match "neural networks."
 
-Here's a summary of what your notes say about neural networks:
-
-### What are Feedforward Neural Networks (FNN...
+Please try rephrasing your question or check if the relevant materials have been uploaded. I'm here to help once we locate the ri...
 
 === RAG TEST 3: what is segmentation on which page and document is it mentioned ? ===
   [STATUS  ] "Analyzing your question..."
@@ -56,36 +49,38 @@ Here's a summary of what your notes say about neural networks:
      -> unit 4 os.pptx.pdf  page=75  type=pdf  score=0.718
      -> unit 4 os.pptx.pdf  page=76  type=pdf  score=0.6982
      -> unit 4 os.pptx.pdf  page=33  type=pdf  score=0.6902
-  [RESPONSE] 8 chunks, 1639 chars
+  [RESPONSE] 11 chunks, 2043 chars
   [CITES?]  YES
-  [PREVIEW] Segmentation is a memory management technique where each job or program is divided into several segments of different sizes. Each segment corresponds to a module containing related functions, such as the program's main function, utility functions, or...
+  [PREVIEW] Segmentation is a memory management technique. It is mentioned in your course material, specifically in **unit 4 os.pptx.pdf** starting from **Page 73**.
+
+Here's what your notes say about segmentation:
+
+### What is Segmentation?
+Segmentation is a mem...
 
 === RAG TEST 4: what are the different Page Replacement Algorithms section 7 page 57 onwards? ===
   [STATUS  ] "Analyzing your question..."
   [STATUS  ] "Routing..."
   [STATUS  ] "Searching knowledge base..."
   [STATUS  ] "Generating answer..."
-  [SOURCES ] [{"file_name": "unit 4 os.pptx.pdf", "file_type": "pdf", "page_number": 57, "timestamp_start": null, "timestamp_end": null, "relevance_score": 0.8208}
+  [SOURCES ] []
   [DONE    ] ""
   [RAG HIT] YES - retriever_vector_node was called
-  [SOURCES] 8 source(s) returned
-     -> unit 4 os.pptx.pdf  page=57  type=pdf  score=0.8208
-     -> unit 4 os.pptx.pdf  page=58  type=pdf  score=0.7798
-     -> unit 4 os.pptx.pdf  page=67  type=pdf  score=0.7633
-     -> unit 4 os.pptx.pdf  page=60  type=pdf  score=0.7524
-     -> unit 4 os.pptx.pdf  page=62  type=pdf  score=0.7506
-  [RESPONSE] 9 chunks, 1629 chars
+  [SOURCES] 0 source(s) returned
+  [RESPONSE] 2 chunks, 313 chars
   [CITES?]  YES
-  [PREVIEW] Your course material, specifically from **Section 7 on page 57 onwards** in `unit 4 os.pptx.pdf`, discusses various Page Replacement Algorithms. These algorithms determine which page to remove from memory when a new page needs to be loaded and there ...
+  [PREVIEW] I couldn't find any specific notes or documents in your uploaded course material that directly match "Page Replacement Algorithms" within "section 7 page 57 onwards."
+
+Please try rephrasing your question or check if the relevant materials have been u...
 
 === DB: 8 messages saved ===
   [user] What do the uploaded notes say about backpropagation?...
   [assistant] According to your notes, backpropagation is a fundamental algorithm in deep lear... [+8 sources] intent=RAG_SEARCH
   [user] Find information from my course material about neural networks...
-  [assistant] Your course material provides a comprehensive introduction to neural networks, p... [+8 sources] intent=RAG_SEARCH
+  [assistant] I couldn't find any specific notes or documents in your uploaded course material... intent=RAG_SEARCH
   [user] what is segmentation on which page and document is it mentioned ?...
-  [assistant] Segmentation is a memory management technique where each job or program is divid... [+8 sources] intent=RAG_SEARCH
+  [assistant] Segmentation is a memory management technique. It is mentioned in your course ma... [+8 sources] intent=RAG_SEARCH
   [user] what are the different Page Replacement Algorithms section 7 page 57 onwards?...
-  [assistant] Your course material, specifically from **Section 7 on page 57 onwards** in `uni... [+8 sources] intent=RAG_SEARCH
+  [assistant] I couldn't find any specific notes or documents in your uploaded course material... intent=RAG_SEARCH
 
 === RAG TEST COMPLETE ===

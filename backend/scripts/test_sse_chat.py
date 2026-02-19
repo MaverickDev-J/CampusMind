@@ -24,7 +24,7 @@ log(f"Session: {sid}")
 # ── TEST 1: RAG Query ──────────────────────────────────────────────
 log("\n=== TEST 1: RAG Query ===")
 resp = requests.post(f"{BASE}/api/chat/sessions/{sid}/message", headers=h,
-                     json={"query": "Explain me about neural networks"}, stream=True)
+                     json={"query": "what are the different Page Replacement Algorithms section 7 page 57 onwards?"}, stream=True)
 
 events = []
 tokens = []

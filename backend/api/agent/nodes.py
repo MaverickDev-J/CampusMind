@@ -294,12 +294,20 @@ async def retriever_vector_node(state: dict) -> dict:
     }
 
     conditions = [visibility_filter]
-    if scope.scope_year is not None:
-        conditions.append({"year": {"$eq": scope.scope_year}})
-    if scope.scope_branch is not None:
-        conditions.append({"branch": {"$eq": scope.scope_branch}})
-    if scope.scope_subject is not None:
-        conditions.append({"subject": {"$eq": scope.scope_subject}})
+
+    # ── File-scoped session: restrict to a single file ────────
+    file_id = state.get("file_id")
+    if file_id:
+        conditions.append({"file_id": {"$eq": file_id}})
+        logger.info("[retriever_vector_node] Scoped to file_id=%s", file_id)
+    else:
+        # Fall back to academic scope from router
+        if scope.scope_year is not None:
+            conditions.append({"year": {"$eq": scope.scope_year}})
+        if scope.scope_branch is not None:
+            conditions.append({"branch": {"$eq": scope.scope_branch}})
+        if scope.scope_subject is not None:
+            conditions.append({"subject": {"$eq": scope.scope_subject}})
 
     where_filter = {"$and": conditions} if len(conditions) > 1 else conditions[0]
 
