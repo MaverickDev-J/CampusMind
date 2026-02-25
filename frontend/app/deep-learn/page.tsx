@@ -224,9 +224,9 @@ export default function DeepLearnPage() {
                                                         )
                                                     }
                                                     className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 transition-colors group/item ${activeSessionId ===
-                                                            s.session_id
-                                                            ? "bg-slate-800/80 text-white shadow-sm border border-slate-700/50"
-                                                            : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
+                                                        s.session_id
+                                                        ? "bg-slate-800/80 text-white shadow-sm border border-slate-700/50"
+                                                        : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
                                                         }`}
                                                 >
                                                     <MessageSquare className="w-4 h-4 shrink-0" />
@@ -538,10 +538,15 @@ export default function DeepLearnPage() {
                                         </p>
                                     </div>
                                 ) : (
-                                    messages.map((msg) => (
+                                    messages.map((msg, idx) => (
                                         <MessageBubble
                                             key={msg.id}
                                             msg={msg}
+                                            isStreaming={
+                                                streaming &&
+                                                msg.role === "assistant" &&
+                                                idx === messages.length - 1
+                                            }
                                         />
                                     ))
                                 )}
@@ -702,7 +707,7 @@ export default function DeepLearnPage() {
 
 // ── Message Bubble Component ────────────────────────────────────
 
-function MessageBubble({ msg }: { msg: ChatMessage }) {
+function MessageBubble({ msg, isStreaming = false }: { msg: ChatMessage; isStreaming?: boolean }) {
     return (
         <div
             className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"
@@ -722,9 +727,16 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
                         }`}
                 >
                     {msg.role === "assistant" ? (
-                        <div className="prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-li:my-0.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-strong:text-indigo-300 prose-ul:my-1.5 prose-ol:my-1.5">
-                            <ReactMarkdown>{msg.content || "..."}</ReactMarkdown>
-                        </div>
+                        isStreaming ? (
+                            <p className="whitespace-pre-wrap">
+                                {msg.content}
+                                <span className="inline-block w-2 h-4 ml-0.5 bg-indigo-400 rounded-sm animate-pulse" />
+                            </p>
+                        ) : (
+                            <div className="prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-li:my-0.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-strong:text-indigo-300 prose-ul:my-1.5 prose-ol:my-1.5">
+                                <ReactMarkdown>{msg.content || "..."}</ReactMarkdown>
+                            </div>
+                        )
                     ) : (
                         <p className="whitespace-pre-wrap">{msg.content}</p>
                     )}
