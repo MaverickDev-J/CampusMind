@@ -38,7 +38,7 @@ def _sse(event_type: str, data) -> str:
 
 class CreateSessionBody(BaseModel):
     title: Optional[str] = None
-    file_id: Optional[str] = None
+    file_ids: Optional[list[str]] = None      # one or more file IDs
 
 
 class ChatMessageBody(BaseModel):
@@ -55,24 +55,25 @@ async def create_session(
     """
     Create a new chat session.
 
-    If ``file_id`` is provided the file must exist in ``file_metadata``
+    If ``file_ids`` is provided each file must exist in ``file_metadata``
     with ``processing.status == "completed"`` (i.e. fully ingested).
     """
     db = get_db()
     user_id: str = current_user["user_id"]
 
     # ── Optional file validation ────────────────────────────────
-    if body.file_id:
-        file_doc = await db.file_metadata.find_one({"file_id": body.file_id})
+    file_ids = body.file_ids or []
+    for fid in file_ids:
+        file_doc = await db.file_metadata.find_one({"file_id": fid})
         if not file_doc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"File {body.file_id} not found",
+                detail=f"File {fid} not found",
             )
         if file_doc.get("processing", {}).get("status") != "completed":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File {body.file_id} is not yet processed (status: {file_doc.get('processing', {}).get('status', 'unknown')})",
+                detail=f"File {fid} is not yet processed (status: {file_doc.get('processing', {}).get('status', 'unknown')})",
             )
 
     # ── Build session document ──────────────────────────────────
@@ -83,7 +84,7 @@ async def create_session(
         "session_id": session_id,
         "user_id": user_id,
         "title": body.title or "New Chat",
-        "file_id": body.file_id,          # None if not provided
+        "file_ids": file_ids,              # [] if none provided
         "created_at": now,
         "updated_at": now,
     }
@@ -93,7 +94,7 @@ async def create_session(
     return {
         "session_id": session_id,
         "title": session_doc["title"],
-        "file_id": body.file_id,
+        "file_ids": file_ids,
         "created_at": now.isoformat(),
     }
 
@@ -199,7 +200,7 @@ async def chat_message(
             "query": query,
             "session_id": session_id,
             "user_id": user_id,
-            "file_id": session.get("file_id"),   # scoped file (may be None)
+            "file_ids": session.get("file_ids", []),  # scoped files (may be empty)
         }
 
         try:
@@ -222,11 +223,18 @@ async def chat_message(
             logger.info("[chat_message] intent=%s", intent)
 
             # ── Step 3: conditional retrieval ───────────────────
-            if intent == "RAG_SEARCH":
+            # Always retrieve when the session is scoped to a file,
+            # regardless of router intent — that's the whole point of
+            # selecting a file to chat about.
+            should_retrieve = (
+                intent == "RAG_SEARCH"
+                or bool(state.get("file_ids"))
+            )
+            if should_retrieve:
                 yield _sse("status", "Searching knowledge base...")
                 retriever_result = await retriever_vector_node(state)
                 state.update(retriever_result)
-            # DEEP_STUDY, CONVERSATIONAL, OUT_OF_SCOPE → skip retrieval
+            # CONVERSATIONAL / OUT_OF_SCOPE without file_id → skip retrieval
 
             # ── Step 4: synthesis (streaming tokens) ────────────
             yield _sse("status", "Generating answer...")
@@ -282,3 +290,50 @@ async def chat_message(
         },
     )
 
+
+# ── PATCH session (rename) ──────────────────────────────────────
+class RenameSessionBody(BaseModel):
+    title: str
+
+@router.patch("/sessions/{session_id}")
+async def rename_session(
+    session_id: str,
+    body: RenameSessionBody,
+    current_user: dict = Depends(get_current_user),
+):
+    """Rename a chat session."""
+    db = get_db()
+    user_id = current_user["user_id"]
+
+    result = await db.chat_sessions.update_one(
+        {"session_id": session_id, "user_id": user_id},
+        {"$set": {"title": body.title.strip()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return {"detail": "Session renamed", "title": body.title.strip()}
+
+
+# ── DELETE session ──────────────────────────────────────────────
+@router.delete("/sessions/{session_id}")
+async def delete_session(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Delete a chat session and all its messages."""
+    db = get_db()
+    user_id = current_user["user_id"]
+
+    session = await db.chat_sessions.find_one(
+        {"session_id": session_id, "user_id": user_id}
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Delete all messages for this session
+    await db.chat_history.delete_many({"session_id": session_id})
+    # Delete the session itself
+    await db.chat_sessions.delete_one({"session_id": session_id, "user_id": user_id})
+
+    return {"detail": "Session deleted", "session_id": session_id}

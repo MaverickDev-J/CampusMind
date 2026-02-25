@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, type KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from "react-markdown";
 import Header from "@/app/components/Header";
 import {
     MessageSquare,
@@ -18,6 +19,8 @@ import {
     StopCircle,
     Image,
     Video,
+    Trash2,
+    Pencil,
 } from "lucide-react";
 import { useChat, type ChatMessage, type SourceRef } from "@/app/hooks/useChat";
 import { useFiles, type FileMetadata } from "@/app/hooks/useFiles";
@@ -39,6 +42,8 @@ export default function DeepLearnPage() {
         error,
         listSessions,
         createSession,
+        renameSession,
+        deleteSession,
         loadHistory,
         sendMessage,
         stopStreaming,
@@ -50,6 +55,9 @@ export default function DeepLearnPage() {
     const [leftOpen, setLeftOpen] = useState(true);
     const [rightOpen, setRightOpen] = useState(true);
     const [inputText, setInputText] = useState("");
+    const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+    const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+    const [editingTitle, setEditingTitle] = useState("");
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -72,11 +80,39 @@ export default function DeepLearnPage() {
     // ── Handlers ────────────────────────────────────────────────
 
     const handleNewChat = () => {
+        setSelectedFileIds([]);
         setView("file-select");
     };
 
-    const handleFileSelect = async (file: FileMetadata) => {
-        const sid = await createSession(file.original_name, file.file_id);
+    const handleToggleFile = (fileId: string) => {
+        setSelectedFileIds((prev) =>
+            prev.includes(fileId)
+                ? prev.filter((id) => id !== fileId)
+                : [...prev, fileId]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectedFileIds.length === processedFiles.length) {
+            setSelectedFileIds([]);
+        } else {
+            setSelectedFileIds(processedFiles.map((f) => f.file_id));
+        }
+    };
+
+    const handleStartChat = async () => {
+        if (selectedFileIds.length === 0) return;
+        const selectedFiles = processedFiles.filter((f) => selectedFileIds.includes(f.file_id));
+        let title: string;
+        if (selectedFiles.length === 1) {
+            title = selectedFiles[0].original_name;
+        } else if (selectedFiles.length === 2) {
+            title = selectedFiles.map((f) => f.original_name.replace(/\.[^.]+$/, "")
+            ).join(" & ");
+        } else {
+            title = `${selectedFiles[0].original_name.replace(/\.[^.]+$/, "")} & ${selectedFiles.length - 1} more`;
+        }
+        const sid = await createSession(title, selectedFileIds);
         if (sid) {
             setView("chat");
             setRightOpen(false);
@@ -86,6 +122,30 @@ export default function DeepLearnPage() {
     const handleSessionClick = async (sessionId: string) => {
         await loadHistory(sessionId);
         setView("chat");
+    };
+
+    const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
+        e.stopPropagation(); // Don't trigger session click
+        if (!confirm("Delete this chat session?")) return;
+        await deleteSession(sessionId);
+        if (activeSessionId === sessionId) {
+            setView("sessions");
+        }
+    };
+
+    const handleStartRename = (e: React.MouseEvent, sessionId: string, currentTitle: string) => {
+        e.stopPropagation();
+        setEditingSessionId(sessionId);
+        setEditingTitle(currentTitle);
+    };
+
+    const handleSaveRename = async () => {
+        if (!editingSessionId || !editingTitle.trim()) {
+            setEditingSessionId(null);
+            return;
+        }
+        await renameSession(editingSessionId, editingTitle.trim());
+        setEditingSessionId(null);
     };
 
     const handleSend = async () => {
@@ -163,15 +223,42 @@ export default function DeepLearnPage() {
                                                             s.session_id
                                                         )
                                                     }
-                                                    className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors ${activeSessionId ===
+                                                    className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 transition-colors group/item ${activeSessionId ===
                                                             s.session_id
                                                             ? "bg-slate-800/80 text-white shadow-sm border border-slate-700/50"
                                                             : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
                                                         }`}
                                                 >
                                                     <MessageSquare className="w-4 h-4 shrink-0" />
-                                                    <span className="text-sm truncate">
-                                                        {s.title}
+                                                    {editingSessionId === s.session_id ? (
+                                                        <input
+                                                            autoFocus
+                                                            value={editingTitle}
+                                                            onChange={(e) => setEditingTitle(e.target.value)}
+                                                            onBlur={handleSaveRename}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === "Enter") handleSaveRename();
+                                                                if (e.key === "Escape") setEditingSessionId(null);
+                                                            }}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="text-sm flex-1 bg-slate-700/50 border border-slate-600 rounded px-2 py-0.5 text-white outline-none focus:border-indigo-500"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-sm truncate flex-1">
+                                                            {s.title}
+                                                        </span>
+                                                    )}
+                                                    <span
+                                                        onClick={(e) => handleStartRename(e, s.session_id, s.title)}
+                                                        className="opacity-0 group-hover/item:opacity-100 p-1 rounded hover:bg-slate-600/50 hover:text-white transition-all cursor-pointer"
+                                                    >
+                                                        <Pencil className="w-3 h-3" />
+                                                    </span>
+                                                    <span
+                                                        onClick={(e) => handleDeleteSession(e, s.session_id)}
+                                                        className="opacity-0 group-hover/item:opacity-100 p-1 rounded hover:bg-red-500/20 hover:text-red-400 transition-all cursor-pointer"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
                                                     </span>
                                                 </button>
                                             ))}
@@ -193,11 +280,38 @@ export default function DeepLearnPage() {
                                                             s.session_id
                                                         )
                                                     }
-                                                    className="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 transition-colors"
+                                                    className="w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2 text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 transition-colors group/item"
                                                 >
                                                     <MessageSquare className="w-4 h-4 shrink-0" />
-                                                    <span className="text-sm truncate">
-                                                        {s.title}
+                                                    {editingSessionId === s.session_id ? (
+                                                        <input
+                                                            autoFocus
+                                                            value={editingTitle}
+                                                            onChange={(e) => setEditingTitle(e.target.value)}
+                                                            onBlur={handleSaveRename}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === "Enter") handleSaveRename();
+                                                                if (e.key === "Escape") setEditingSessionId(null);
+                                                            }}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="text-sm flex-1 bg-slate-700/50 border border-slate-600 rounded px-2 py-0.5 text-white outline-none focus:border-indigo-500"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-sm truncate flex-1">
+                                                            {s.title}
+                                                        </span>
+                                                    )}
+                                                    <span
+                                                        onClick={(e) => handleStartRename(e, s.session_id, s.title)}
+                                                        className="opacity-0 group-hover/item:opacity-100 p-1 rounded hover:bg-slate-600/50 hover:text-white transition-all cursor-pointer"
+                                                    >
+                                                        <Pencil className="w-3 h-3" />
+                                                    </span>
+                                                    <span
+                                                        onClick={(e) => handleDeleteSession(e, s.session_id)}
+                                                        className="opacity-0 group-hover/item:opacity-100 p-1 rounded hover:bg-red-500/20 hover:text-red-400 transition-all cursor-pointer"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
                                                     </span>
                                                 </button>
                                             ))}
@@ -237,9 +351,13 @@ export default function DeepLearnPage() {
                     {view === "chat" && (
                         <button
                             onClick={() => setRightOpen(!rightOpen)}
-                            className="absolute top-4 right-4 z-10 p-2 rounded-lg text-slate-500 hover:bg-slate-800/50 transition-colors"
+                            className={`absolute top-4 right-4 z-10 p-2 rounded-lg flex items-center gap-2 transition-all ${rightOpen
+                                ? "text-slate-500 hover:bg-slate-800/50"
+                                : "bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-600/30"
+                                }`}
                         >
                             <PanelRight className="w-5 h-5" />
+                            {!rightOpen && <span className="text-xs font-medium">Sources</span>}
                         </button>
                     )}
 
@@ -281,13 +399,16 @@ export default function DeepLearnPage() {
                                 <span className="text-sm">Back</span>
                             </button>
 
-                            <h2 className="text-xl font-bold text-white mb-2">
-                                Select a File
-                            </h2>
-                            <p className="text-slate-400 text-sm mb-8">
-                                Choose a processed file to scope your AI
-                                conversation.
-                            </p>
+                            <div className="flex items-center justify-between mb-2">
+                                <div>
+                                    <h2 className="text-xl font-bold text-white">
+                                        Select Files
+                                    </h2>
+                                    <p className="text-slate-400 text-sm mt-1">
+                                        Choose one or more processed files to scope your AI conversation.
+                                    </p>
+                                </div>
+                            </div>
 
                             {filesLoading ? (
                                 <div className="flex items-center justify-center py-20">
@@ -305,60 +426,92 @@ export default function DeepLearnPage() {
                                     </p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                    {processedFiles.map((file) => (
-                                        <motion.button
-                                            key={file.file_id}
-                                            onClick={() =>
-                                                handleFileSelect(file)
-                                            }
-                                            whileHover={{ y: -4, scale: 1.02 }}
-                                            className="group text-left bg-[#0f1523] border border-slate-800 rounded-xl overflow-hidden hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 transition-all"
+                                <>
+                                    {/* Select All / Count bar */}
+                                    <div className="flex items-center justify-between mb-4 mt-4">
+                                        <button
+                                            onClick={handleSelectAll}
+                                            className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
                                         >
-                                            <div className="h-24 bg-gradient-to-br from-slate-800 to-slate-900 p-4 flex items-end group-hover:from-indigo-900/40 group-hover:to-slate-900 transition-colors">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                                                        <FileIcon
-                                                            type={
-                                                                file.file_type
-                                                            }
-                                                        />
+                                            {selectedFileIds.length === processedFiles.length
+                                                ? "Deselect All"
+                                                : "Select All"}
+                                        </button>
+                                        {selectedFileIds.length > 0 && (
+                                            <span className="text-xs text-slate-400">
+                                                {selectedFileIds.length} file{selectedFileIds.length !== 1 ? "s" : ""} selected
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
+                                        {processedFiles.map((file) => {
+                                            const isSelected = selectedFileIds.includes(file.file_id);
+                                            return (
+                                                <motion.button
+                                                    key={file.file_id}
+                                                    onClick={() => handleToggleFile(file.file_id)}
+                                                    whileHover={{ y: -2 }}
+                                                    className={`group text-left bg-[#0f1523] border rounded-xl overflow-hidden transition-all ${isSelected
+                                                        ? "border-indigo-500 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-500/30"
+                                                        : "border-slate-800 hover:border-slate-700"
+                                                        }`}
+                                                >
+                                                    <div className={`h-24 p-4 flex items-end transition-colors ${isSelected
+                                                        ? "bg-gradient-to-br from-indigo-900/40 to-slate-900"
+                                                        : "bg-gradient-to-br from-slate-800 to-slate-900 group-hover:from-slate-800/80"
+                                                        }`}>
+                                                        <div className="flex items-center gap-2 w-full">
+                                                            {/* Checkbox */}
+                                                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isSelected
+                                                                ? "bg-indigo-600 border-indigo-500"
+                                                                : "border-slate-600 group-hover:border-slate-500"
+                                                                }`}>
+                                                                {isSelected && (
+                                                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                    </svg>
+                                                                )}
+                                                            </div>
+                                                            <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                                                                <FileIcon type={file.file_type} />
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-sm font-medium text-white truncate">
+                                                                    {file.original_name}
+                                                                </p>
+                                                                <p className="text-[10px] text-slate-400 uppercase">
+                                                                    {file.academic.subject} • {file.academic.branch}
+                                                                </p>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div className="min-w-0">
-                                                        <p className="text-sm font-medium text-white truncate">
-                                                            {
-                                                                file.original_name
-                                                            }
-                                                        </p>
-                                                        <p className="text-[10px] text-slate-400 uppercase">
-                                                            {
-                                                                file.academic
-                                                                    .subject
-                                                            }{" "}
-                                                            •{" "}
-                                                            {
-                                                                file.academic
-                                                                    .branch
-                                                            }
-                                                        </p>
+                                                    <div className="p-3 flex items-center justify-between text-xs text-slate-500">
+                                                        <span>
+                                                            {file.processing.chunk_count} chunks
+                                                        </span>
+                                                        <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase">
+                                                            Ready
+                                                        </span>
                                                     </div>
-                                                </div>
-                                            </div>
-                                            <div className="p-3 flex items-center justify-between text-xs text-slate-500">
-                                                <span>
-                                                    {
-                                                        file.processing
-                                                            .chunk_count
-                                                    }{" "}
-                                                    chunks
-                                                </span>
-                                                <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase">
-                                                    Ready
-                                                </span>
-                                            </div>
-                                        </motion.button>
-                                    ))}
-                                </div>
+                                                </motion.button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Sticky Start Chat button */}
+                                    {selectedFileIds.length > 0 && (
+                                        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20">
+                                            <button
+                                                onClick={handleStartChat}
+                                                className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold shadow-2xl shadow-purple-900/40 transition-all text-sm"
+                                            >
+                                                <Sparkles className="w-4 h-4" />
+                                                Start Chat with {selectedFileIds.length} file{selectedFileIds.length !== 1 ? "s" : ""}
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}
@@ -564,18 +717,24 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
             <div className="max-w-[80%] space-y-2">
                 <div
                     className={`p-4 rounded-2xl text-sm leading-relaxed ${msg.role === "user"
-                            ? "bg-blue-600 text-white rounded-tr-sm"
-                            : "bg-[#0f1523] border border-slate-800 text-slate-200 rounded-tl-sm shadow-xl"
+                        ? "bg-blue-600 text-white rounded-tr-sm"
+                        : "bg-[#0f1523] border border-slate-800 text-slate-200 rounded-tl-sm shadow-xl"
                         }`}
                 >
-                    <p className="whitespace-pre-wrap">{msg.content || (msg.role === "assistant" ? "..." : "")}</p>
+                    {msg.role === "assistant" ? (
+                        <div className="prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-li:my-0.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-strong:text-indigo-300 prose-ul:my-1.5 prose-ol:my-1.5">
+                            <ReactMarkdown>{msg.content || "..."}</ReactMarkdown>
+                        </div>
+                    ) : (
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                    )}
                 </div>
 
                 {msg.timestamp && (
                     <div
                         className={`flex items-center gap-2 text-[10px] text-slate-500 ${msg.role === "user"
-                                ? "justify-end"
-                                : "justify-start"
+                            ? "justify-end"
+                            : "justify-start"
                             }`}
                     >
                         <span>

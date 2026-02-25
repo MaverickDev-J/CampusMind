@@ -5,32 +5,34 @@ import { useAuth } from "@/app/context/auth-context";
 
 const API = "http://localhost:8000/api";
 
-// ── Types ───────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────
 
 export interface ChatSession {
     session_id: string;
     title: string;
-    file_id: string | null;
+    file_ids: string[];
     created_at: string;
-    updated_at: string;
+    updated_at?: string;
 }
 
 export interface ChatMessage {
     id: string;
     role: "user" | "assistant";
     content: string;
-    sources?: SourceRef[];
     timestamp?: string;
 }
 
 export interface SourceRef {
     file_name: string;
-    page_number: number;
+    file_type: string;
+    page_number?: number;
+    timestamp_start?: string;
+    timestamp_end?: string;
     relevance_score: number;
     chunk_preview?: string;
 }
 
-// ── Hook ────────────────────────────────────────────────────────
+// ── Hook ───────────────────────────────────────────────────────
 
 export function useChat() {
     const { user } = useAuth();
@@ -45,52 +47,51 @@ export function useChat() {
     const [error, setError] = useState<string | null>(null);
 
     const abortRef = useRef<AbortController | null>(null);
-    const msgCounter = useRef(0);
 
-    const headers = useCallback(() => {
-        const h: HeadersInit = { "Content-Type": "application/json" };
-        if (user?.token) h["Authorization"] = `Bearer ${user.token}`;
-        return h;
-    }, [user]);
+    // ── Auth header helper ──────────────────────────────────────
+    const headers = useCallback(
+        (json = false): HeadersInit => {
+            const h: HeadersInit = {
+                Authorization: `Bearer ${user?.token}`,
+            };
+            if (json) h["Content-Type"] = "application/json";
+            return h;
+        },
+        [user]
+    );
 
     // ── List Sessions ───────────────────────────────────────────
-
     const listSessions = useCallback(async () => {
         if (!user?.token) return;
         try {
-            const res = await fetch(`${API}/chat/sessions`, { headers: headers() });
-            if (!res.ok) throw new Error("Failed to list sessions");
+            const res = await fetch(`${API}/chat/sessions`, {
+                headers: headers(),
+            });
+            if (!res.ok) throw new Error("Failed to load sessions");
             const data = await res.json();
-            setSessions(data.sessions ?? []);
-        } catch (e) {
-            console.error("[useChat] listSessions error:", e);
+            setSessions(data.sessions ?? data ?? []);
+        } catch (e: any) {
+            console.error("[useChat] listSessions:", e);
         }
     }, [user, headers]);
 
     // ── Create Session ──────────────────────────────────────────
-
     const createSession = useCallback(
-        async (title?: string, fileId?: string): Promise<string | null> => {
+        async (title: string, fileIds: string[]): Promise<string | null> => {
             if (!user?.token) return null;
             setError(null);
             try {
-                const body: Record<string, string | undefined> = {};
-                if (title) body.title = title;
-                if (fileId) body.file_id = fileId;
-
                 const res = await fetch(`${API}/chat/sessions`, {
                     method: "POST",
-                    headers: headers(),
-                    body: JSON.stringify(body),
+                    headers: headers(true),
+                    body: JSON.stringify({ title, file_ids: fileIds }),
                 });
-
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
                     throw new Error(err.detail || "Failed to create session");
                 }
-
                 const data = await res.json();
-                const sid = data.session_id as string;
+                const sid = data.session_id;
                 setActiveSessionId(sid);
                 setMessages([]);
                 setSources([]);
@@ -107,7 +108,6 @@ export function useChat() {
     );
 
     // ── Load History ────────────────────────────────────────────
-
     const loadHistory = useCallback(
         async (sessionId: string) => {
             if (!user?.token) return;
@@ -116,7 +116,6 @@ export function useChat() {
             setActiveSessionId(sessionId);
             setSources([]);
             setStatus("");
-
             try {
                 const res = await fetch(
                     `${API}/chat/sessions/${sessionId}/history`,
@@ -124,23 +123,15 @@ export function useChat() {
                 );
                 if (!res.ok) throw new Error("Failed to load history");
                 const data = await res.json();
-
-                const msgs: ChatMessage[] = (data.messages ?? []).map(
-                    (m: any, i: number) => ({
-                        id: `hist_${i}`,
-                        role: m.role,
-                        content: m.content,
-                        sources: m.sources,
-                        timestamp: m.timestamp,
-                    })
-                );
-                setMessages(msgs);
-
-                // If the last message has sources, show them
-                const last = msgs.findLast((m) => m.role === "assistant");
-                if (last?.sources?.length) {
-                    setSources(last.sources);
-                }
+                const history: ChatMessage[] = (
+                    data.messages ?? data ?? []
+                ).map((m: any, i: number) => ({
+                    id: m._id ?? m.id ?? `hist-${i}`,
+                    role: m.role,
+                    content: m.content,
+                    timestamp: m.timestamp,
+                }));
+                setMessages(history);
             } catch (e: any) {
                 setError(e.message);
             } finally {
@@ -150,35 +141,80 @@ export function useChat() {
         [user, headers]
     );
 
-    // ── Send Message (SSE) ──────────────────────────────────────
+    // ── Rename Session ────────────────────────────────────────────
+    const renameSession = useCallback(
+        async (sessionId: string, newTitle: string) => {
+            if (!user?.token) return;
+            try {
+                const res = await fetch(
+                    `${API}/chat/sessions/${sessionId}`,
+                    {
+                        method: "PATCH",
+                        headers: headers(true),
+                        body: JSON.stringify({ title: newTitle }),
+                    }
+                );
+                if (!res.ok) throw new Error("Failed to rename session");
+                await listSessions();
+            } catch (e: any) {
+                setError(e.message);
+            }
+        },
+        [user, headers, listSessions]
+    );
 
+    // ── Delete Session ────────────────────────────────────────────
+    const deleteSession = useCallback(
+        async (sessionId: string) => {
+            if (!user?.token) return;
+            try {
+                const res = await fetch(
+                    `${API}/chat/sessions/${sessionId}`,
+                    { method: "DELETE", headers: headers() }
+                );
+                if (!res.ok) throw new Error("Failed to delete session");
+                // If deleting the active session, reset chat state
+                if (activeSessionId === sessionId) {
+                    setActiveSessionId(null);
+                    setMessages([]);
+                    setSources([]);
+                    setStatus("");
+                }
+                await listSessions();
+            } catch (e: any) {
+                setError(e.message);
+            }
+        },
+        [user, headers, activeSessionId, listSessions]
+    );
+
+    // ── Send Message (SSE streaming) ────────────────────────────
     const sendMessage = useCallback(
         async (query: string) => {
-            if (!user?.token || !activeSessionId || streaming) return;
-
+            if (!user?.token || !activeSessionId) return;
             setError(null);
+            setStreaming(true);
             setSources([]);
-            setStatus("");
+            setStatus("Thinking...");
 
-            // Add user message immediately
-            const userMsgId = `msg_${++msgCounter.current}`;
+            // Optimistic user message
             const userMsg: ChatMessage = {
-                id: userMsgId,
+                id: `u-${Date.now()}`,
                 role: "user",
                 content: query,
+                timestamp: new Date().toISOString(),
             };
             setMessages((prev) => [...prev, userMsg]);
 
-            // Prepare AI message placeholder
-            const aiMsgId = `msg_${++msgCounter.current}`;
-            const aiMsg: ChatMessage = {
-                id: aiMsgId,
+            // Placeholder assistant message
+            const assistantId = `a-${Date.now()}`;
+            const assistantMsg: ChatMessage = {
+                id: assistantId,
                 role: "assistant",
                 content: "",
+                timestamp: new Date().toISOString(),
             };
-            setMessages((prev) => [...prev, aiMsg]);
-
-            setStreaming(true);
+            setMessages((prev) => [...prev, assistantMsg]);
 
             const controller = new AbortController();
             abortRef.current = controller;
@@ -188,19 +224,22 @@ export function useChat() {
                     `${API}/chat/sessions/${activeSessionId}/message`,
                     {
                         method: "POST",
-                        headers: headers(),
+                        headers: headers(true),
                         body: JSON.stringify({ query }),
                         signal: controller.signal,
                     }
                 );
 
                 if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
-                    throw new Error(err.detail || "Chat request failed");
+                    const errBody = await res.json().catch(() => ({}));
+                    throw new Error(
+                        errBody.detail || `HTTP ${res.status}`
+                    );
                 }
 
+                // ── Stream SSE ──────────────────────────────────
                 const reader = res.body?.getReader();
-                if (!reader) throw new Error("No response body");
+                if (!reader) throw new Error("No response stream");
 
                 const decoder = new TextDecoder();
                 let buffer = "";
@@ -211,15 +250,18 @@ export function useChat() {
 
                     buffer += decoder.decode(value, { stream: true });
                     const lines = buffer.split("\n");
-                    buffer = lines.pop() || ""; // keep incomplete line
+                    buffer = lines.pop() ?? "";
 
                     for (const line of lines) {
                         const trimmed = line.trim();
                         if (!trimmed.startsWith("data: ")) continue;
 
+                        const jsonStr = trimmed.slice(6);
+                        if (!jsonStr || jsonStr === "[DONE]") continue;
+
                         try {
-                            const payload = JSON.parse(trimmed.slice(6));
-                            const { t, d } = payload;
+                            const evt = JSON.parse(jsonStr);
+                            const { t, d } = evt;
 
                             switch (t) {
                                 case "status":
@@ -229,30 +271,34 @@ export function useChat() {
                                 case "token":
                                     setMessages((prev) =>
                                         prev.map((m) =>
-                                            m.id === aiMsgId
-                                                ? { ...m, content: m.content + d }
+                                            m.id === assistantId
+                                                ? {
+                                                    ...m,
+                                                    content:
+                                                        m.content + d,
+                                                }
                                                 : m
                                         )
                                     );
                                     break;
 
                                 case "sources":
-                                    setSources(d ?? []);
-                                    // Also attach to the AI message
-                                    setMessages((prev) =>
-                                        prev.map((m) =>
-                                            m.id === aiMsgId
-                                                ? { ...m, sources: d }
-                                                : m
-                                        )
-                                    );
-                                    break;
-
-                                case "error":
-                                    setError(d);
+                                    if (Array.isArray(d)) {
+                                        setSources(d);
+                                    }
                                     break;
 
                                 case "done":
+                                    setStatus("");
+                                    break;
+
+                                case "error":
+                                    setError(
+                                        typeof d === "string"
+                                            ? d
+                                            : "An error occurred"
+                                    );
+                                    setStatus("");
                                     break;
                             }
                         } catch {
@@ -262,33 +308,25 @@ export function useChat() {
                 }
             } catch (e: any) {
                 if (e.name !== "AbortError") {
-                    setError(e.message);
+                    setError(e.message || "Stream failed");
                 }
             } finally {
                 setStreaming(false);
                 setStatus("");
                 abortRef.current = null;
-
-                // Refresh sessions to update timestamps
-                listSessions();
             }
         },
-        [user, headers, activeSessionId, streaming, listSessions]
+        [user, activeSessionId, headers]
     );
 
     // ── Stop Streaming ──────────────────────────────────────────
-
     const stopStreaming = useCallback(() => {
         abortRef.current?.abort();
-        abortRef.current = null;
         setStreaming(false);
         setStatus("");
     }, []);
 
-    // ── Return ──────────────────────────────────────────────────
-
     return {
-        // State
         sessions,
         activeSessionId,
         messages,
@@ -297,13 +335,12 @@ export function useChat() {
         streaming,
         loading,
         error,
-
-        // Actions
         listSessions,
         createSession,
+        renameSession,
+        deleteSession,
         loadHistory,
         sendMessage,
         stopStreaming,
-        setActiveSessionId,
     };
 }

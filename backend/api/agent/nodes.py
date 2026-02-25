@@ -295,11 +295,14 @@ async def retriever_vector_node(state: dict) -> dict:
 
     conditions = [visibility_filter]
 
-    # ── File-scoped session: restrict to a single file ────────
-    file_id = state.get("file_id")
-    if file_id:
-        conditions.append({"file_id": {"$eq": file_id}})
-        logger.info("[retriever_vector_node] Scoped to file_id=%s", file_id)
+    # ── File-scoped session: restrict to selected files ──────────
+    file_ids = state.get("file_ids", [])
+    if file_ids:
+        if len(file_ids) == 1:
+            conditions.append({"file_id": {"$eq": file_ids[0]}})
+        else:
+            conditions.append({"file_id": {"$in": file_ids}})
+        logger.info("[retriever_vector_node] Scoped to file_ids=%s", file_ids)
     else:
         # Fall back to academic scope from router
         if scope.scope_year is not None:
