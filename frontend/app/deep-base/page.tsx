@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useFiles, type FileMetadata } from "@/app/hooks/useFiles";
 import { useAuth } from "@/app/context/auth-context";
+import { API_BASE_URL } from "@/app/config";
 import {
     BRANCHES,
     YEARS,
@@ -162,7 +163,7 @@ export default function DeepBasePage() {
             formData.append("unit", uploadData.unit);
             formData.append("doc_type", uploadData.doc_type);
 
-            const res = await fetch("http://localhost:8000/api/upload/file", {
+            const res = await fetch(`${API_BASE_URL}/api/upload/file`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${user?.token}`
@@ -212,7 +213,7 @@ export default function DeepBasePage() {
         }
 
         const handleClick = () => {
-            const url = `http://localhost:8000${file.playback_url}`;
+            const url = `${API_BASE_URL}${file.playback_url}`;
             window.open(url, "_blank");
         };
 

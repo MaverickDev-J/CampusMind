@@ -1,21 +1,17 @@
 "use client";
 
 import { useState, useEffect, type FormEvent } from "react";
-import { Github, Linkedin } from "lucide-react";
+import { Link2, ShieldCheck, Mail, Lock, Loader2, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useAuth } from "@/app/context/auth-context";
 import { useRouter } from "next/navigation";
-
-// Dynamic import globe to avoid SSR issues with canvas
-const Globe = dynamic(() => import("@/app/components/Globe"), { ssr: false });
+import { motion } from "framer-motion";
 
 export default function LoginPage() {
     const { login, loading, error, clearError, user } = useAuth();
     const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [rememberMe, setRememberMe] = useState(false);
 
     useEffect(() => {
         if (user) router.push("/");
@@ -28,137 +24,94 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="flex h-screen w-full overflow-hidden">
-            {/* ── Left Panel: Globe ──────────────────────────────── */}
-            <div className="hidden lg:flex w-1/2 bg-[#0a0e1a] relative flex-col items-center justify-center overflow-hidden">
-                {/* Globe */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <Globe />
-                </div>
-
-                {/* Bottom text overlay */}
-                <div className="absolute bottom-12 left-10 right-10 z-10">
-                    <p className="text-slate-400 text-sm mb-1">Welcome to</p>
-                    <h2 className="text-white text-4xl font-bold leading-tight">
-                        CampusMind.
-                    </h2>
-                    <h2 className="text-white text-4xl font-bold leading-tight">
-                        Your Academic Intelligence.
-                    </h2>
-                    <p className="text-slate-500 text-sm mt-3 max-w-md">
-                        Home to thousands of engineering students, researchers, and innovators building the future of education.
-                    </p>
-                </div>
+        <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center p-6 selection:bg-indigo-500/30 overflow-y-auto font-sans">
+            {/* Background Decorative Elements */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-500/5 blur-[120px] rounded-full" />
+                <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-500/5 blur-[120px] rounded-full" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[url('/grid.svg')] opacity-[0.03]" />
             </div>
 
-            {/* ── Right Panel: Form ──────────────────────────────── */}
-            <div className="w-full lg:w-1/2 bg-[#0d1117] flex flex-col items-center justify-center px-6 sm:px-12 relative">
-                <div className="w-full max-w-sm">
-                    {/* Logo */}
-                    <div className="flex flex-col items-center mb-10">
-                        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/10 border border-blue-500/20 mb-3">
-                            <svg className="w-6 h-6 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
-                                <path d="M6 12v5c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2v-5" />
-                            </svg>
-                        </div>
-                        <h1 className="text-xl font-bold text-white">
-                            Campus<span className="text-blue-400">Mind</span>
-                        </h1>
-                        <p className="text-xs text-slate-500 tracking-wider">
-                            Academic Intelligence
-                        </p>
-                    </div>
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="w-full max-w-md relative"
+            >
+                {/* Logo Section */}
+                <div className="text-center mb-10 flex flex-col items-center">
+                    <img src="/brand/logo_vertical.png" alt="Classroom Connect" className="w-[280px] h-auto object-contain mix-blend-multiply brightness-[1.05] contrast-[1.05]" />
+                    <p className="text-slate-400 font-black tracking-[0.2em] text-[10px] uppercase mt-4">Secure Learning Access</p>
+                </div>
 
-                    {/* Error */}
-                    {error && (
-                        <div className="mb-4 px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center">
-                            {error}
-                        </div>
-                    )}
+                <div className="bg-white/70 backdrop-blur-xl border border-slate-200 p-8 sm:p-12 rounded-3xl shadow-premium relative overflow-hidden group">
+                    <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
+                        {error && (
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="p-4 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-xs font-black text-center"
+                            >
+                                {error}
+                            </motion.div>
+                        )}
 
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {/* Email */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                Email
-                            </label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                                className="w-full px-3.5 py-2.5 rounded-lg bg-transparent border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                            />
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-4">Authorized Email</label>
+                            <div className="relative">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                                <input 
+                                    type="email" 
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="your@institute.edu"
+                                    className="w-full bg-slate-50 border-2 border-slate-50 rounded-3xl py-4 pl-12 pr-4 focus:outline-none focus:border-amber-600/30 focus:ring-8 focus:ring-amber-600/5 transition-all text-sm font-bold placeholder:text-slate-300"
+                                    required
+                                />
+                            </div>
                         </div>
 
-                        {/* Password */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                Password
-                            </label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                className="w-full px-3.5 py-2.5 rounded-lg bg-transparent border border-slate-600 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                            />
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center ml-4">
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Security Key</label>
+                                <button type="button" className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 hover:text-amber-700 transition-colors">Forgot Key?</button>
+                            </div>
+                            <div className="relative">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                                <input 
+                                    type="password" 
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full bg-slate-50 border-2 border-slate-50 rounded-3xl py-4 pl-12 pr-4 focus:outline-none focus:border-amber-600/30 focus:ring-8 focus:ring-amber-600/5 transition-all text-sm font-bold placeholder:text-slate-300"
+                                    required
+                                />
+                            </div>
                         </div>
 
-                        {/* Submit */}
-                        <button
+                        <button 
                             type="submit"
                             disabled={loading}
-                            className="w-full py-2.5 rounded-lg font-medium text-sm text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full btn-accent py-5 rounded-3xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-[0.2em] text-xs"
                         >
                             {loading ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    Connecting...
-                                </>
+                                <Loader2 className="animate-spin" size={22} />
                             ) : (
-                                "Log In"
+                                <>
+                                    Sign In
+                                    <ArrowRight size={22} />
+                                </>
                             )}
                         </button>
                     </form>
-
-                    {/* Utility row */}
-                    <div className="flex items-center justify-between mt-3">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={rememberMe}
-                                onChange={(e) => setRememberMe(e.target.checked)}
-                                className="w-3.5 h-3.5 rounded border-slate-600 bg-transparent text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
-                            />
-                            <span className="text-xs text-slate-400">Remember me</span>
-                        </label>
-                        <button className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-                            Forgot password?
-                        </button>
-                    </div>
-
-
-
-                    {/* Social auth removed for MVP */}
-
-
-                    {/* Signup link */}
-                    <p className="mt-8 text-center text-sm text-slate-400">
-                        Don&apos;t have an account?{" "}
-                        <Link
-                            href="/signup"
-                            className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
-                        >
-                            Sign up
-                        </Link>
-                    </p>
-
-
                 </div>
-            </div>
+
+                <p className="text-center mt-12 text-slate-400 text-sm font-bold">
+                    New to the network? {" "}
+                    <Link href="/signup" className="text-amber-600 hover:text-amber-700 font-black transition-colors uppercase tracking-widest text-xs border-b-2 border-amber-100 ml-2">
+                        Signup
+                    </Link>
+                </p>
+            </motion.div>
         </div>
     );
 }

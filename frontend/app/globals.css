@@ -1,162 +1,152 @@
 @import "tailwindcss";
-@plugin "@tailwindcss/typography";
+@import "katex/dist/katex.min.css";
 
 @theme inline {
   --font-sans: 'Inter', sans-serif;
-  --color-neon-purple: #a855f7;
-  --color-neon-cyan: #06b6d4;
+  --color-primary: #F3CE6E; /* Premium Yellow/Amber - primary now */
+  --color-secondary: #FFB800; /* Gold/Amber */
+  --color-accent: #F3CE6E; 
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-3xl: 2.5rem;
 }
 
 /* ── Base ────────────────────────────────────── */
 body {
-  background: #020617;
-  color: #e2e8f0;
+  background: radial-gradient(circle at 0% 0%, #f0f7ff 0%, #ffffff 50%, #fffbeb 100%);
+  background-attachment: fixed;
+  color: #1e293b;
   font-family: 'Inter', sans-serif;
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
 }
 
-/* ── Radial gradient background ────────────── */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(168, 85, 247, 0.12) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(6, 182, 212, 0.10) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(168, 85, 247, 0.05) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-#__next,
-main,
-body>div {
-  position: relative;
-  z-index: 1;
-}
-
-/* ── Glass card ──────────────────────────────── */
-.glass-card {
-  background: rgba(15, 23, 42, 0.55);
-  -webkit-backdrop-filter: blur(16px);
+/* ── Custom Utilities ────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  box-shadow:
-    inset 0 1px 0 0 rgba(148, 163, 184, 0.06),
-    0 4px 24px rgba(0, 0, 0, 0.25);
-  border-radius: 16px;
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-.glass-card-sm {
-  background: rgba(15, 23, 42, 0.45);
-  -webkit-backdrop-filter: blur(12px);
+.glass-dark {
+  background: rgba(15, 23, 42, 0.8);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(148, 163, 184, 0.10);
-  box-shadow:
-    inset 0 1px 0 0 rgba(148, 163, 184, 0.04),
-    0 2px 12px rgba(0, 0, 0, 0.20);
-  border-radius: 12px;
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* ── Glow effects ────────────────────────────── */
-.glow-purple {
-  border-color: rgba(168, 85, 247, 0.6) !important;
-  box-shadow:
-    0 0 20px rgba(168, 85, 247, 0.2),
-    0 0 40px rgba(168, 85, 247, 0.08),
-    inset 0 1px 0 0 rgba(168, 85, 247, 0.1) !important;
+.shadow-soft {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
 }
 
-.glow-cyan-hover {
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+.shadow-premium {
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.08);
 }
 
-.glow-cyan-hover:hover {
-  border-color: rgba(6, 182, 212, 0.45);
-  box-shadow:
-    0 0 15px rgba(6, 182, 212, 0.15),
-    0 0 30px rgba(6, 182, 212, 0.06),
-    inset 0 1px 0 0 rgba(6, 182, 212, 0.08);
+/* ── Neumorphism ───────────────────────────── */
+.btn-neumorphic {
+  background: #f8fafc;
+  box-shadow: 8px 8px 16px #e2e8f0, -8px -8px 16px #ffffff;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ── Text glow ───────────────────────────────── */
-.text-glow {
-  text-shadow: 0 0 20px rgba(168, 85, 247, 0.4), 0 0 40px rgba(168, 85, 247, 0.15);
+.btn-neumorphic:active {
+  box-shadow: inset 4px 4px 8px #cbd5e1, inset -4px -4px 8px #ffffff;
+  transform: scale(0.98);
 }
 
-.text-glow-cyan {
-  text-shadow: 0 0 20px rgba(6, 182, 212, 0.4), 0 0 40px rgba(6, 182, 212, 0.15);
+.btn-neumorphic-primary {
+  background: #0066ff;
+  box-shadow: 6px 6px 15px rgba(0, 102, 255, 0.3), -4px -4px 10px rgba(255, 255, 255, 0.5);
+  color: white;
+}
+
+.btn-neumorphic-primary:active {
+  box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.2);
+  transform: scale(0.98);
+}
+
+.btn-accent {
+  background: #F3CE6E;
+  color: #1e293b;
+  box-shadow: 6px 6px 15px rgba(243, 206, 110, 0.3), -4px -4px 10px rgba(255, 255, 255, 0.5);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: all 0.3s ease;
+}
+
+.btn-accent:hover {
+  background: #ffc93e;
+  transform: translateY(-2px);
+  box-shadow: 8px 8px 20px rgba(243, 206, 110, 0.4);
+}
+
+.text-accent {
+  color: #F3CE6E;
+}
+
+.bg-accent {
+  background-color: #F3CE6E;
+}
+
+.border-accent {
+  border-color: #F3CE6E;
 }
 
 /* ── Scrollbar ───────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
-  border-radius: 3px;
+  background: rgba(0, 102, 255, 0.1);
+  border-radius: 20px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.35);
+  background: rgba(0, 102, 255, 0.2);
+  background-clip: content-box;
 }
 
-/* ── Pulse animation for active indicator ──── */
-@keyframes pulse-glow {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.6;
-  }
+/* ── Status Indicators ─────────────────────── */
+.status-dot-animated {
+  display: inline-flex;
+  width: 8px;
+  height: 8px;
+  background-color: #10b981;
+  border-radius: 50%;
+  position: relative;
 }
 
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+.status-dot-animated::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: inherit;
+  animation: pulse-dot 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
-/* ── Grid dot pattern ────────────────────────── */
-.dot-pattern {
-  background-image: radial-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px);
-  background-size: 24px 24px;
+@keyframes pulse-dot {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(3.5); opacity: 0; }
 }
 
-/* ── Star twinkle animation (Login page) ───── */
-@keyframes twinkle {
-
-  0%,
-  100% {
-    opacity: 0;
-    transform: scale(0.5);
-  }
-
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
+/* ── Transitions ────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.star-twinkle {
-  animation: twinkle 3s ease-in-out infinite;
-}
-
-/* ── Neon gradient border (Login card) ──────── */
-.login-gradient-border {
-  background: linear-gradient(135deg,
-      rgba(168, 85, 247, 0.7) 0%,
-      rgba(6, 182, 212, 0.7) 50%,
-      rgba(168, 85, 247, 0.7) 100%);
-  box-shadow:
-    0 0 30px rgba(168, 85, 247, 0.15),
-    0 0 60px rgba(6, 182, 212, 0.08);
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
 }

@@ -13,6 +13,8 @@ import {
     apiLogin,
     apiSignup,
     apiGetProfile,
+    apiUpdateProfile,
+    apiChangePassword,
     apiLogout,
     type UserProfile,
 } from "@/app/lib/api";
@@ -32,11 +34,11 @@ interface AuthContextType {
         name: string,
         email: string,
         password: string,
-        role: "student" | "faculty" | "admin",
-        profileData?: any,
-        adminSecret?: string
+        profileData?: { roll_no?: string }
     ) => Promise<void>;
     logout: () => void;
+    updateProfile: (name: string) => Promise<void>;
+    changePassword: (data: any) => Promise<void>;
     clearError: () => void;
 }
 
@@ -121,22 +123,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: string,
             email: string,
             password: string,
-            role: "student" | "faculty" | "admin",
-            profileData?: any,
-            adminSecret?: string
+            profileData?: { roll_no?: string }
         ) => {
             setError(null);
             setLoading(true);
 
             try {
-                // 1. Register
+                // 1. Register (Role is hardcoded to student in api layer or inferred)
                 await apiSignup({
                     name,
                     email,
                     password,
-                    role,
+                    role: "student",
                     profile: profileData,
-                    admin_secret_key: adminSecret,
                 });
 
                 // 2. Auto-login
@@ -168,12 +167,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.push("/login");
     }, [router, user]);
 
+    // ── Update Profile ──────────────────────────────────────
+    const updateProfile = useCallback(
+        async (name: string) => {
+            if (!user?.token) return;
+            try {
+                const updated = await apiUpdateProfile(user.token, { name });
+                setUser({ ...updated, token: user.token });
+            } catch (err) {
+                setError(err instanceof Error ? err.message : "Update failed");
+                throw err;
+            }
+        },
+        [user?.token]
+    );
+
+    // ── Change Password ──────────────────────────────────────
+    const changePassword = useCallback(
+        async (data: any) => {
+            if (!user?.token) return;
+            try {
+                await apiChangePassword(user.token, data);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : "Password change failed");
+                throw err;
+            }
+        },
+        [user?.token]
+    );
+
     // ── Clear error ─────────────────────────────────────────
     const clearError = useCallback(() => setError(null), []);
 
     return (
         <AuthContext.Provider
-            value={{ user, loading, error, login, signup, logout, clearError }}
+            value={{ 
+                user, 
+                loading, 
+                error, 
+                login, 
+                signup, 
+                logout, 
+                updateProfile, 
+                changePassword, 
+                clearError 
+            }}
         >
             {children}
         </AuthContext.Provider>

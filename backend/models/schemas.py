@@ -1,89 +1,98 @@
-"""Pydantic v2 schemas and Enums for CampusMind."""
+"""Pydantic v2 schemas and Enums for CampusMind (Classroom Architecture)."""
 
 from __future__ import annotations
 
-from enum import Enum, IntEnum
+from enum import Enum
 from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
 
-# ── Enums (Swagger will render these as fixed dropdowns) ─────────────
+# ── Enums ────────────────────────────────────────────────────────────
 
 class RoleEnum(str, Enum):
-    admin = "admin"
-    faculty = "faculty"
+    superadmin = "superadmin"
+    teacher = "teacher"
     student = "student"
 
 
-class BranchEnum(str, Enum):
-    AI_DS = "AI&DS"
-    COMP = "COMP"
-    IT = "IT"
-    EXTC = "EXTC"
-    MECH = "MECH"
-    CIVIL = "CIVIL"
-
-
-class YearEnum(IntEnum):
-    """IntEnum so it stores/serialises as an integer."""
-    FIRST = 1
-    SECOND = 2
-    THIRD = 3
-    FOURTH = 4
-
-
-# ── Profile sub-models ──────────────────────────────────────────────
-
-class StudentProfile(BaseModel):
-    roll_no: str
-    branch: BranchEnum
-    year: YearEnum
-
-
-class FacultyProfile(BaseModel):
-    department: BranchEnum
-
-
-class AdminProfile(BaseModel):
-    pass  # may be empty
-
-
-# ── Request schemas ─────────────────────────────────────────────────
+# ── Request schemas ──────────────────────────────────────────────────
 
 class UserCreate(BaseModel):
-    email: str
-    name: str
-    password: str
-    role: RoleEnum
+    """Self-registration — students only."""
+    email: EmailStr                                      # Proper email validation
+    name: str = Field(..., min_length=1, max_length=100, strip_whitespace=True)
+    password: str = Field(..., min_length=8, max_length=128)
     profile: Optional[Dict[str, Any]] = None
-    admin_secret_key: Optional[str] = None
 
     model_config = {"json_schema_extra": {
         "examples": [
             {
-                "email": "stu@tcet.com",
+                "email": "stu@college.com",
                 "name": "John Doe",
                 "password": "secret123",
-                "role": "student",
-                "profile": {
-                    "roll_no": "221001",
-                    "branch": "COMP",
-                    "year": 3,
-                },
+                "profile": {"roll_no": "221001"},
             }
         ]
     }}
 
 
-# ── Response schemas ────────────────────────────────────────────────
+class ProvisionTeacherBody(BaseModel):
+    """Superadmin creates a teacher account."""
+    email: EmailStr
+    name: str = Field(..., min_length=1, max_length=100, strip_whitespace=True)
+    password: str = Field(..., min_length=8, max_length=128)
+
+    model_config = {"json_schema_extra": {
+        "examples": [
+            {
+                "email": "prof@college.com",
+                "name": "Prof. Jane Smith",
+                "password": "secret12345",
+            }
+        ]
+    }}
+
+
+class ClassroomCreate(BaseModel):
+    """Teacher creates a new classroom."""
+    name: str = Field(..., min_length=1, max_length=200, strip_whitespace=True)
+    description: Optional[str] = Field(None, max_length=1000)
+    subject: Optional[str] = Field(None, max_length=200, strip_whitespace=True)
+
+
+class JoinClassroomBody(BaseModel):
+    """Student joins a classroom via join code."""
+    join_code: str = Field(..., min_length=6, max_length=6)
+
+
+class CalendarEventCreate(BaseModel):
+    """Teacher or admin creates a calendar event."""
+    title: str = Field(..., min_length=1, max_length=200, strip_whitespace=True)
+    description: Optional[str] = Field(None, max_length=1000)
+    date: str = Field(..., description="ISO date string YYYY-MM-DD")
+    classroom_id: Optional[str] = None
+    type: str = Field("event", description="event|exam|deadline")
+
+
+class UserUpdate(BaseModel):
+    """Update profile info."""
+    name: Optional[str] = Field(None, min_length=1, max_length=100, strip_whitespace=True)
+
+
+class PasswordChange(BaseModel):
+    """Change user password."""
+    old_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
+# ── Response schemas ─────────────────────────────────────────────────
 
 class UserResponse(BaseModel):
     user_id: str
     email: str
     name: str
     role: RoleEnum
-    institute_id: str
     profile: Dict[str, Any] = {}
 
 
@@ -92,7 +101,13 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-# ── Admin schemas ───────────────────────────────────────────────────
-
-class AdminTargetUser(BaseModel):
-    target_user_id: str = Field(..., description="The user_id of the target student")
+class ClassroomResponse(BaseModel):
+    classroom_id: str
+    name: str
+    description: Optional[str] = None
+    subject: Optional[str] = None
+    join_code: str
+    member_count: int
+    created_by: str
+    created_by_name: Optional[str] = None
+    created_at: str

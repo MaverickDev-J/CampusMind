@@ -9,9 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "CampusMind — AI-Powered Academic Dashboard",
-  description:
-    "Your Second Brain for 4 Years of Engineering. Unified AI Knowledge Base + Personalized Workspace.",
+  title: "Classroom Connect | Intelligent Learning Management",
+  description: "Experience the future of education with Classroom Connect - the AI-powered academic assistant and community platform.",
 };
 
 export default function RootLayout({
@@ -20,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body className={`${inter.variable} ${inter.className} antialiased`}>
         <AuthProvider>{children}</AuthProvider>
       </body>

@@ -6,7 +6,10 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiofiles>=25.1.0",
-    "chromadb>=1.5.0",
+    "chromadb>=0.5.3",
+    "opentelemetry-api>=1.24.0",
+    "opentelemetry-sdk>=1.24.0",
+    "opentelemetry-semantic-conventions==0.45b0",
     "fastapi>=0.129.0",
     "google-genai>=1.63.0",
     "langchain-core>=1.2.13",
@@ -22,4 +25,10 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "python-multipart>=0.0.22",
     "uvicorn[standard]>=0.41.0",
+    "celery>=5.4.0",
+    "redis>=5.2.1",
+    "docling>=2.20.0",
+    "ddgs>=6.4.0",
+    "slowapi>=0.1.9",
+    "email-validator>=2.1.0",
 ]

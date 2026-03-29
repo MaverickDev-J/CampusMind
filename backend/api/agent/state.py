@@ -3,12 +3,21 @@ state.py — CampusMind LangGraph State Definition
 =================================================
 Single source of truth for all data flowing through the agent graph.
 Every node reads from and writes to this TypedDict.
+
+FLOW:
+  entry_node        → user_profile, chat_history, classroom_context
+  router_node       → router_output
+  embed_node        → query_embedding  (only on RAG/WEB path)
+  retriever_node    → retrieved_chunks, used_sources, no_chunks_found
+  web_search_node   → web_search_results
+  fast_reject_node  → fast_reject_response
+  synthesis_stream  → (streaming tokens — driven from SSE layer)
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, Optional, TypedDict
+from typing import Any, Literal, Optional
 
 
 # ── Sub-types ───────────────────────────────────────────────────────
@@ -20,10 +29,8 @@ class UserProfile:
 
     user_id: str
     name: str
-    role: Literal["admin", "faculty", "student"]
-    year: Optional[int] = None
-    branch: Optional[str] = None
-    department: Optional[str] = None  # faculty only
+    role: Literal["superadmin", "teacher", "student"]
+    enrolled_classroom_ids: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -40,7 +47,7 @@ class RetrievedChunk:
 
     text: str
     source_file: str  # e.g. "ML_Lecture_Unit3.pdf"
-    file_type: str  # "pdf", "video", "audio", "image"
+    file_type: str    # "pdf", "video", "audio", "image"
     page_number: Optional[int] = None
     timestamp_start: Optional[str] = None
     timestamp_end: Optional[str] = None
@@ -50,56 +57,61 @@ class RetrievedChunk:
 
 @dataclass
 class RouterOutput:
-    """Structured output from router_node (Flash-Lite JSON mode)."""
+    """Structured output from router_node (Flash JSON mode)."""
 
     intent: Literal[
-        "RAG_SEARCH",  # → retriever_vector_node
-        "DEEP_STUDY",  # → retriever_cache_node  (deferred)
-        "CONVERSATIONAL",  # → synthesis_node directly
-        "OUT_OF_SCOPE",  # → synthesis_node with rejection
+        "RAG_SEARCH",       # → embed → retriever_vector_node
+        "WEB_SEARCH",       # → embed → web_search_node
+        "DEEP_STUDY",       # → embed → retriever (file-scoped, future)
+        "CONVERSATIONAL",   # → synthesis directly (no embed)
+        "OUT_OF_SCOPE",     # → fast_reject_node (no LLM, no embed)
     ]
-    scope_year: Optional[int] = None
-    scope_branch: Optional[str] = None
-    scope_subject: Optional[str] = None
+    scope_classroom_id: Optional[str] = None
     target_file_id: Optional[str] = None
     confidence: Optional[float] = None
+    reasoning: list[str] = field(default_factory=list)
 
 
 # ── Main Graph State ────────────────────────────────────────────────
 
 
-class GraphState(TypedDict):
-    """
-    The single state object passed through every node.
+# We use a plain dict at runtime because LangGraph mutates it with
+# update() calls between nodes. TypedDict is used for documentation
+# and IDE hints only.
+GraphState = dict[str, Any]
 
-    FLOW:
-      entry_node     → user_profile, chat_history, query_embedding
-      router_node    → router_output
-      retriever_*    → retrieved_chunks, response_sources, no_chunks_found
-      synthesis_node → final_response (or yields tokens)
-    """
-
-    # ── INPUT (set by FastAPI before graph invocation) ────────────
-    query: str
-    session_id: str
-    user_id: str
-
-    # ── ENTRY NODE outputs ────────────────────────────────────────
-    user_profile: Optional[UserProfile]
-    chat_history: Optional[list[ChatMessage]]
-    query_embedding: Optional[list[float]]
-
-    # ── ROUTER NODE outputs ───────────────────────────────────────
-    router_output: Optional[RouterOutput]
-
-    # ── RETRIEVER NODE outputs ────────────────────────────────────
-    retrieved_chunks: Optional[list[RetrievedChunk]]
-    response_sources: Optional[list[dict]]
-    no_chunks_found: Optional[bool]  # True when RAG found 0 results
-
-    # ── SYNTHESIS NODE outputs ────────────────────────────────────
-    final_response: Optional[str]
-
-    # ── METADATA ──────────────────────────────────────────────────
-    processing_status: Optional[str]
-    error: Optional[str]
+# ── Documented keys in GraphState ───────────────────────────────────
+# query:                str
+# session_id:           str
+# user_id:              str
+# scope_classroom_id:   Optional[str]   — active classroom for this chat
+#
+# --- entry_node outputs ---
+# user_profile:         UserProfile
+# classroom_context:    Optional[dict]  — {name, subject, description}
+# chat_history:         list[ChatMessage]
+#
+# --- router_node outputs ---
+# router_output:        RouterOutput
+# reasoning:            list[str]
+#
+# --- embed_node outputs (only on RAG/WEB path) ---
+# query_embedding:      list[float]
+#
+# --- retriever_node outputs ---
+# retrieved_chunks:     list[RetrievedChunk]
+# used_sources:         list[dict]      — ONLY chunks that passed relevance threshold
+# no_chunks_found:      bool
+#
+# --- web_search_node outputs ---
+# web_search_results:   list[dict]
+#
+# --- fast_reject_node outputs ---
+# fast_reject_response: str             — hardcoded refusal message
+#
+# --- synthesis (driven from SSE layer, not a graph node) ---
+# final_response:       str             — assembled by SSE after streaming
+#
+# --- shared metadata ---
+# processing_status:    str
+# error:                Optional[str]

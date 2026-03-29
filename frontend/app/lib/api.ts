@@ -1,8 +1,6 @@
-// ============================================================
-// NeuralCampus — FastAPI Backend API Helpers
-// ============================================================
+import { API_BASE_URL as CONFIG_BASE } from "@/app/config";
 
-export const API_BASE_URL = "http://localhost:8000/api";
+export const API_BASE_URL = `${CONFIG_BASE}/api`;
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -15,15 +13,11 @@ export interface SignupRequest {
     email: string;
     name: string;
     password: string;
-    role: "student" | "faculty" | "admin";
+    role: "student"; // only students can self-register
     profile?: {
         roll_no?: string;
-        branch?: string; // Enum: AI&DS, COMP, IT, etc.
-        year?: number;   // 1, 2, 3, 4
-        department?: string; // For faculty
         [key: string]: any;
     };
-    admin_secret_key?: string;
 }
 
 export interface AuthResponse {
@@ -35,16 +29,30 @@ export interface UserProfile {
     user_id: string;
     email: string;
     name: string;
-    role: "student" | "faculty" | "admin";
-    institute_id: string;
+    role: "superadmin" | "teacher" | "student";
+    enrolled_classroom_ids?: string[];
     profile: {
         roll_no?: string;
-        branch?: string;
-        year?: number;
-        department?: string;
-        can_upload?: boolean;
         [key: string]: any;
     };
+}
+
+export interface Classroom {
+    classroom_id: string;
+    name: string;
+    description?: string;
+    subject?: string;
+    join_code: string;
+    member_count: number;
+    created_by: string;
+    created_by_name?: string;
+    created_at: string;
+}
+
+export interface CreateClassroomRequest {
+    name: string;
+    description?: string;
+    subject?: string;
 }
 
 // ── API Functions ───────────────────────────────────────────
@@ -109,6 +117,48 @@ export async function apiGetProfile(token: string): Promise<UserProfile> {
     if (!res.ok) {
         throw new Error("Failed to fetch profile");
     }
+ 
+    return res.json();
+}
+
+/**
+ * PATCH /api/users/me
+ */
+export async function apiUpdateProfile(token: string, data: { name: string }): Promise<UserProfile> {
+    const res = await fetch(`${API_BASE_URL}/users/me`, {
+        method: "PATCH",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to update profile");
+    }
+
+    return res.json();
+}
+
+/**
+ * POST /api/users/me/password
+ */
+export async function apiChangePassword(token: string, data: any): Promise<{ message: string }> {
+    const res = await fetch(`${API_BASE_URL}/users/me/password`, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to update password");
+    }
 
     return res.json();
 }
@@ -117,7 +167,67 @@ export async function apiGetProfile(token: string): Promise<UserProfile> {
  * Logout (Client-side only)
  */
 export async function apiLogout(token: string): Promise<void> {
-    // Backend is stateless JWT, so we just discard token on client.
-    // If you had a blacklist/redis, you'd call an endpoint here.
     return Promise.resolve();
+}
+
+// ── Classroom API Functions ─────────────────────────────────────────
+
+export async function apiGetClassrooms(token: string): Promise<{ classrooms: Classroom[]; count: number }> {
+    const res = await fetch(`${API_BASE_URL}/classrooms`, {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+    });
+
+    if (!res.ok) throw new Error("Failed to fetch classrooms");
+    return res.json();
+}
+
+export async function apiGetClassroom(token: string, classroom_id: string): Promise<Classroom> {
+    const res = await fetch(`${API_BASE_URL}/classrooms/${classroom_id}`, {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+    });
+
+    if (!res.ok) throw new Error("Failed to fetch classroom metadata");
+    return res.json();
+}
+
+export async function apiCreateClassroom(token: string, data: CreateClassroomRequest): Promise<Classroom> {
+    const res = await fetch(`${API_BASE_URL}/classrooms`, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to create classroom");
+    }
+    return res.json();
+}
+
+export async function apiJoinClassroom(token: string, join_code: string): Promise<Classroom> {
+    const res = await fetch(`${API_BASE_URL}/classrooms/join`, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ join_code }),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to join classroom");
+    }
+    return res.json();
 }
